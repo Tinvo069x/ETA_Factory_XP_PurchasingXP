@@ -1,0 +1,1643 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ETA factory XP Need By - 3 Input Integrated</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<style>
+:root{
+  --ink:#172033;--muted:#65748a;--line:#dfe6ef;--panel:#fff;--canvas:#f4f7fb;
+  --navy:#102c4d;--blue:#1d6ee8;--blue-soft:#eaf2ff;--green:#138a5a;--green-soft:#e7f7ef;
+  --orange:#c86a12;--orange-soft:#fff2e5;--red:#bc3b3b;--red-soft:#fff0ef;
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;min-width:320px;background:var(--canvas);color:var(--ink)}
+.topbar{background:var(--navy);color:#fff;padding:24px clamp(18px,5vw,70px)}
+.topbar-inner,main{max-width:1500px;margin:0 auto}
+.eyebrow{margin:0 0 6px;color:#9dc8ff;font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
+h1{margin:0;font-size:clamp(24px,3vw,34px);letter-spacing:-.03em}
+.subtitle{margin:8px 0 0;max-width:1000px;color:#d4e4fa;font-size:14px;line-height:1.5}
+main{padding:26px clamp(16px,5vw,70px) 55px}
+.pipeline{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin-bottom:18px;color:#52657b;font-size:12px;font-weight:700}
+.pipeline span{padding:7px 10px;border:1px solid var(--line);background:#fff;border-radius:999px}.pipeline b{color:var(--blue)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:0 8px 24px rgba(23,42,70,.045)}
+.setup{padding:22px}
+.file-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.dropzone{position:relative;min-height:165px;padding:18px;border:1.5px dashed #b7c4d5;border-radius:13px;background:#fbfcfe;display:flex;flex-direction:column;justify-content:center;transition:.15s;cursor:pointer}
+.dropzone:hover,.dropzone.dragover{border-color:var(--blue);background:var(--blue-soft)}
+.dropzone.loaded{border-style:solid;border-color:#aee1c8;background:#f4fcf8}
+.dropzone input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.file-kicker{color:#335f91;font-weight:800;font-size:11px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:5px}
+.file-title{font-size:15px}.file-help{margin-top:7px;color:var(--muted);font-size:12px;line-height:1.5}.file-name{margin-top:10px;font-size:12px;font-weight:700;color:var(--green);word-break:break-all}
+.controls{display:grid;grid-template-columns:minmax(160px,220px) 1fr auto;gap:15px;align-items:end;margin-top:18px;padding-top:18px;border-top:1px solid var(--line)}
+.option label{display:block;margin-bottom:6px;color:#4d5f75;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em}
+.option input{width:100%;padding:10px;border:1px solid #cbd6e3;border-radius:9px;font:inherit;font-size:13px}
+.assumption{color:var(--muted);font-size:12px;line-height:1.55;margin:0}
+button{border:0;border-radius:9px;padding:12px 17px;font:inherit;font-size:13px;font-weight:800;cursor:pointer;transition:.15s}
+button.primary{min-width:205px;background:var(--blue);color:#fff;box-shadow:0 4px 12px rgba(29,110,232,.22)}
+button.primary:hover:not(:disabled){background:#155fcf;transform:translateY(-1px)}
+button.export{background:var(--green);color:#fff}button.export:hover:not(:disabled){background:#0e754b}button:disabled{opacity:.5;cursor:not-allowed;box-shadow:none}
+.message{margin-top:16px;padding:11px 13px;border-radius:9px;font-size:13px;line-height:1.5;display:none}
+.message.info{display:block;color:#285d9f;background:var(--blue-soft);border:1px solid #c8ddff}.message.error{display:block;color:#932c2c;background:var(--red-soft);border:1px solid #f3c4c1}.message.ok{display:block;color:#11623f;background:var(--green-soft);border:1px solid #b9e8ce}
+.results{display:none;margin-top:20px}.results.show{display:block}
+.kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:11px;margin-bottom:16px}.kpi{background:#fff;border:1px solid var(--line);border-radius:13px;padding:14px}.kpi .label{color:var(--muted);font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase}.kpi .value{margin-top:7px;font-size:22px;font-weight:800}.kpi.warn .value{color:var(--orange)}.kpi.bad .value{color:var(--red)}
+.result-panel{overflow:hidden}.result-head{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 19px;border-bottom:1px solid var(--line)}.result-head h2{margin:0;font-size:17px}.meta{margin-top:4px;color:var(--muted);font-size:12px}
+.search{padding:9px 11px;border:1px solid #cbd6e3;border-radius:8px;min-width:280px;font:inherit;font-size:12px}
+.head-actions{display:flex;gap:9px;align-items:center}
+.table-wrap{overflow:auto;max-height:620px}.table-wrap table{border-collapse:collapse;width:max-content;min-width:100%;font-size:12px}th,td{padding:9px 10px;border-right:1px solid #edf0f4;border-bottom:1px solid #edf0f4;white-space:nowrap}th{position:sticky;top:0;z-index:2;background:#f7f9fc;color:#52657b;font-size:10px;text-transform:uppercase;letter-spacing:.04em;text-align:left}tr:hover td{background:#fbfdff}.qtyc{background:#f0fdf4!important;font-weight:700}.bun{background:#eff6ff!important;font-weight:700}.etd{background:#fff8e8!important;font-weight:800}.tag{display:inline-block;padding:4px 7px;border-radius:999px;font-size:11px;font-weight:800}.tag.pull{color:#9c4e08;background:var(--orange-soft)}.tag.ok{color:#0e754b;background:var(--green-soft)}.tag.bad{color:#9d3232;background:var(--red-soft)}.tag.neutral{color:#5d6d81;background:#eef2f6}
+.footnote{padding:13px 19px;border-top:1px solid var(--line);color:var(--muted);font-size:12px;line-height:1.55}
+@media(max-width:1100px){.file-grid{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(3,1fr)}.controls{grid-template-columns:1fr}.controls button{width:100%}}
+@media(max-width:700px){.kpis{grid-template-columns:1fr 1fr}.result-head{align-items:stretch;flex-direction:column}.head-actions{flex-direction:column;align-items:stretch}.search{min-width:0;width:100%}}
+
+/* ============================================================
+   OPTION 3.5 — UI layout only
+   Reference layout: three inputs on top, lead time + process
+   button centered underneath. Calculation/export logic unchanged.
+   ============================================================ */
+body{background:#f3f6fa}
+.topbar{
+  height:142px;
+  padding:0;
+  background:#123252;
+  display:flex;
+  align-items:flex-start;
+}
+.topbar-inner{
+  width:min(1056px,calc(100% - 40px));
+  max-width:1056px;
+  margin:0 auto;
+  padding-top:38px;
+}
+.topbar h1{
+  margin:0;
+  color:#fff;
+  font-size:27px;
+  line-height:1.1;
+  font-weight:800;
+  letter-spacing:-.035em;
+}
+.eyebrow,.subtitle{display:none!important}
+
+main{
+  width:min(1080px,calc(100% - 32px));
+  max-width:1080px;
+  margin:0 auto;
+  padding:21px 0 52px;
+}
+.pipeline{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  flex-wrap:wrap;
+  margin:0 0 14px;
+  color:#52657b;
+  font-size:9px;
+  line-height:1;
+  font-weight:700;
+  white-space:nowrap;
+}
+.pipeline span{
+  padding:6px 9px;
+  border:1px solid #dde5ef;
+  border-radius:999px;
+  background:#fff;
+  box-shadow:0 1px 2px rgba(16,44,77,.03);
+}
+.pipeline b{font-size:10px;color:#4b8ee8}
+
+.panel{
+  background:#fff;
+  border:1px solid #dce4ee;
+  border-radius:14px;
+  box-shadow:0 5px 18px rgba(23,42,70,.035);
+}
+.setup{
+  min-height:432px;
+  padding:16px 18px 14px;
+  display:flex;
+  flex-direction:column;
+}
+.file-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:10px;
+}
+.dropzone{
+  position:relative;
+  min-height:176px;
+  padding:16px 14px;
+  border:1px dashed #b8c9dc;
+  border-radius:11px;
+  background:#fbfcfe;
+  display:flex;
+  flex-direction:column;
+  justify-content:flex-start;
+  transition:.15s;
+  cursor:pointer;
+}
+.dropzone:hover,.dropzone.dragover{border-color:#6da2e6;background:#f5f9ff}
+.dropzone.loaded{border-style:solid;border-color:#aee1c8;background:#f5fcf8}
+.dropzone input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.file-kicker{
+  margin:0 0 5px;
+  color:#1c5a97;
+  font-size:9px;
+  line-height:1.2;
+  font-weight:800;
+  letter-spacing:.055em;
+  text-transform:uppercase;
+}
+.file-title{font-size:12px;line-height:1.25;font-weight:800;color:#172033}
+.file-help{display:none}
+.file-name{margin-top:10px;font-size:10px;line-height:1.35;font-weight:700;color:var(--green);word-break:break-all}
+
+/* Reference: divider under the 3 upload cards, then one centered control column */
+.controls{
+  flex:1;
+  min-height:218px;
+  margin-top:14px;
+  padding-top:0;
+  border-top:1px solid #dfe6ef;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:flex-end;
+  gap:63px;
+}
+.assumption{display:none!important}
+.option{
+  width:182px;
+  margin-top:auto;
+}
+.option label{
+  display:block;
+  margin:0 0 6px;
+  color:#375675;
+  font-size:9px;
+  line-height:1.2;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.055em;
+}
+.option input{
+  width:100%;
+  height:34px;
+  padding:7px 9px;
+  border:1px solid #cbd9e8;
+  border-radius:8px;
+  background:#fff;
+  font:inherit;
+  font-size:11px;
+  color:#172033;
+}
+button{border-radius:8px;font-size:10px;padding:9px 14px}
+button.primary{
+  width:170px;
+  min-width:170px;
+  height:34px;
+  margin:0 0 1px;
+  padding:0 13px;
+  background:#2878e6;
+  color:#fff;
+  box-shadow:none;
+}
+button.primary:disabled{opacity:1;background:#82aef0;color:#fff}
+button.primary:hover:not(:disabled){transform:none;background:#1767d4}
+.message{
+  width:min(620px,100%);
+  margin:10px auto 0;
+  padding:9px 11px;
+  font-size:11px;
+}
+.results{margin-top:18px}
+
+@media(max-width:1100px){
+  .topbar-inner{width:calc(100% - 40px)}
+  main{width:calc(100% - 32px)}
+  .file-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .controls{display:flex;min-height:218px}
+  .controls button{width:170px}
+}
+@media(max-width:760px){
+  .topbar{height:118px}
+  .topbar-inner{padding-top:34px}
+  .topbar h1{font-size:24px}
+  main{padding-top:16px}
+  .pipeline{white-space:normal}
+  .file-grid{grid-template-columns:1fr}
+  .dropzone{min-height:105px}
+  .setup{min-height:0}
+  .controls{
+    min-height:0;
+    padding:28px 0 4px;
+    gap:22px;
+    justify-content:flex-start;
+  }
+  .option{width:min(240px,100%);margin-top:0}
+  button.primary{width:min(240px,100%);min-width:0;margin:0}
+}
+
+
+/* ============================================================
+   OPTION 3.7 — WIDE DASHBOARD UI ONLY
+   Matches the supplied reference: compact navy header, full-width
+   pipeline, 3 upload cards on the left, lead time + action on the
+   right, and an immediate full-width result table below.
+   Calculation / mapping / ROP / FIFO / MRP / Excel logic unchanged.
+   ============================================================ */
+html,body{width:100%;overflow-x:hidden}
+body{background:#f3f6fa}
+.topbar{
+  height:114px;
+  min-height:114px;
+  padding:0;
+  background:#123556;
+  display:block;
+}
+.topbar-inner{
+  width:100%;
+  max-width:none;
+  margin:0;
+  padding:32px 20px 0;
+}
+.topbar h1{
+  margin:0;
+  font-size:26px;
+  line-height:1;
+  font-weight:800;
+  letter-spacing:-.035em;
+}
+
+main{
+  width:100%;
+  max-width:none;
+  margin:0;
+  padding:14px 12px 36px;
+}
+.pipeline{
+  width:100%;
+  min-height:28px;
+  margin:0 0 10px;
+  padding:0 6px;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap:6px;
+  flex-wrap:wrap;
+  white-space:normal;
+  font-size:9px;
+}
+.pipeline span{
+  padding:5px 9px;
+  border-color:#dce5ef;
+  box-shadow:0 1px 4px rgba(18,53,86,.04);
+}
+.pipeline b{font-size:10px}
+
+/* One horizontal working area: upload cards left, controls right */
+.setup{
+  min-height:176px;
+  width:100%;
+  padding:12px 14px 62px;
+  display:grid;
+  grid-template-columns:minmax(650px,2.2fr) minmax(405px,1fr);
+  column-gap:34px;
+  align-items:start;
+  border-radius:12px;
+  box-shadow:0 3px 12px rgba(23,42,70,.025);
+}
+.file-grid{
+  width:100%;
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:8px;
+}
+.dropzone{
+  min-height:100px;
+  height:100px;
+  padding:13px 12px;
+  justify-content:flex-start;
+  border-radius:9px;
+  background:#fbfcfe;
+}
+.dropzone.loaded{
+  border:1px solid #a8ddc1;
+  background:#f3fbf7;
+}
+.file-kicker{
+  margin-bottom:5px;
+  font-size:8.5px;
+  letter-spacing:.05em;
+}
+.file-title{font-size:11.5px;line-height:1.2}
+.file-name{
+  margin-top:8px;
+  font-size:9px;
+  line-height:1.25;
+  color:#0e8454;
+  max-height:31px;
+  overflow:hidden;
+}
+
+.controls{
+  min-height:100px;
+  height:100px;
+  margin:0;
+  padding:0;
+  border-top:0;
+  display:grid;
+  grid-template-columns:minmax(170px,190px) minmax(175px,1fr);
+  gap:54px;
+  align-items:center;
+  justify-content:end;
+}
+.option{
+  width:190px;
+  margin:0;
+  justify-self:end;
+}
+.option label{
+  margin:0 0 6px;
+  font-size:9px;
+  color:#355777;
+}
+.option input{
+  width:190px;
+  height:36px;
+  padding:7px 10px;
+  border-radius:8px;
+  font-size:11px;
+}
+button.primary{
+  width:178px;
+  min-width:178px;
+  height:36px;
+  margin:21px 0 0;
+  justify-self:end;
+  border-radius:8px;
+  font-size:10px;
+}
+.message{
+  grid-column:1 / -1;
+  width:100%;
+  max-width:none;
+  margin:8px 0 -50px;
+}
+
+/* Reference has no KPI strip between input area and table */
+.results{margin-top:10px}
+.kpis{display:none!important}
+.result-panel{
+  border-radius:12px;
+  box-shadow:0 3px 12px rgba(23,42,70,.025);
+}
+.result-head{
+  min-height:82px;
+  padding:17px 24px;
+  gap:18px;
+}
+.result-head h2{
+  margin:0;
+  font-size:19px;
+  line-height:1.15;
+  font-weight:800;
+  letter-spacing:-.015em;
+}
+.meta{
+  margin-top:6px;
+  font-size:12px;
+  color:#61748b;
+}
+.head-actions{gap:12px}
+.search{
+  width:346px;
+  min-width:346px;
+  height:38px;
+  padding:9px 13px;
+  border-radius:9px;
+  font-size:12px;
+}
+button.export{
+  width:116px;
+  height:35px;
+  padding:0 13px;
+  border-radius:8px;
+  font-size:10px;
+}
+.table-wrap{max-height:620px}
+.table-wrap table{font-size:12.5px}
+th,td{
+  height:42px;
+  padding:9px 12px;
+  border-right:1px solid #e7ecf2;
+  border-bottom:1px solid #e7ecf2;
+}
+th{
+  height:38px;
+  padding-top:9px;
+  padding-bottom:9px;
+  background:#f6f8fb;
+  color:#466181;
+  font-size:9.5px;
+  font-weight:800;
+  letter-spacing:.045em;
+}
+.footnote{font-size:11px}
+
+@media(max-width:1120px){
+  .setup{
+    grid-template-columns:1fr;
+    gap:14px;
+    padding-bottom:18px;
+  }
+  .controls{
+    width:100%;
+    min-height:72px;
+    height:auto;
+    grid-template-columns:190px 178px;
+    justify-content:center;
+    gap:28px;
+    padding-top:4px;
+  }
+  .option{justify-self:auto}
+  button.primary{margin-top:21px;justify-self:auto}
+  .message{margin:0;grid-column:1 / -1}
+}
+@media(max-width:760px){
+  .topbar{height:96px;min-height:96px}
+  .topbar-inner{padding:28px 16px 0}
+  .topbar h1{font-size:23px}
+  main{padding:12px 8px 28px}
+  .pipeline{justify-content:flex-start}
+  .file-grid{grid-template-columns:1fr}
+  .dropzone{height:auto;min-height:86px}
+  .controls{
+    grid-template-columns:1fr;
+    gap:12px;
+    justify-items:stretch;
+  }
+  .option,.option input,button.primary{width:100%;min-width:0}
+  button.primary{margin-top:0}
+  .result-head{align-items:stretch;flex-direction:column;padding:14px}
+  .head-actions{width:100%;flex-direction:column;align-items:stretch}
+  .search,button.export{width:100%;min-width:0}
+}
+</style>
+</head>
+<body>
+<header class="topbar"><div class="topbar-inner">
+  <h1>ETA factory XP Need By</h1>
+</div></header>
+<main>
+  <div class="pipeline"><span>BI Shortage</span><b>→</b><span>ROP Demand Converter</span><b>→</b><span>Material → FFFC</span><b>→</b><span>Planned Order by FFFC</span><b>→</b><span>BUn + Qty Convert PO</span><b>→</b><span>ETD Allocation by FFFC</span><b>→</b><span>Excel: ETD Propose + MRP Table</span></div>
+  <section class="panel setup">
+    <div class="file-grid">
+      <label class="dropzone" id="demandZone">
+        <input id="demandFile" type="file" accept=".csv,.xlsx,.xlsb,.xls,.xlsm">
+        <span class="file-kicker">Input 1 · Demand source</span>
+        <strong class="file-title">BI Shortage Weekly</strong>
+        <span class="file-help">Expected: <b>LD Part</b>, <b>ROP</b>, <b>Stock-0007</b>, <b>Type</b>, and timeline date columns. <b>ROP Demand Converter runs first for each LD Part</b>: it consumes cumulative 01 Demand + 01 Demand FCST-XYS from the earliest week, moves the covered quantity to the first demand bucket, keeps only the cutoff residual, and leaves all weeks after cutoff unchanged. After that, the existing FFFC mapping, stock and Planned Order logic runs unchanged.</span>
+        <span class="file-name" id="demandName"></span>
+      </label>
+      <label class="dropzone" id="masterZone">
+        <input id="masterFile" type="file" accept=".xlsx,.xls,.xlsm,.xlsb">
+        <span class="file-kicker">Input 2 · Unit master</span>
+        <strong class="file-title">Master List</strong>
+        <span class="file-help">Expected: <b>Material</b>, <b>Group No.</b> (or FFFC) and <b>BUn</b> / Base Unit. <b>Column order is fully flexible</b>: Material can be in B, C, D, ... and the other fields can be anywhere in the same header row. The source Group No. is treated as FFFC. If Group No. is blank, Material is used as the fallback key.</span>
+        <span class="file-name" id="masterName"></span>
+      </label>
+      <label class="dropzone" id="supplyZone">
+        <input id="supplyFile" type="file" accept=".xlsx,.xls,.xlsm,.xlsb">
+        <span class="file-kicker">Input 3 · PO supply</span>
+        <strong class="file-title">PO OTD Backlog</strong>
+        <span class="file-help">Expected: <b>Material</b>, <b>Backlog Qty</b>, <b>Order Unit</b>, <b>Availability date</b>, and preferably <b>PO date</b>. Before FIFO, rows are sorted ascending by FFFC → Availability date → PO date → Backlog Qty. Output preserves every original PO column and appends the calculated fields at the far right.</span>
+        <span class="file-name" id="supplyName"></span>
+      </label>
+    </div>
+    <div class="controls">
+      <div class="option"><label for="leadDays">ETD lead time (days)</label><input id="leadDays" type="number" min="0" max="365" value="21"></div>
+      <p class="assumption"><b>Step 0 — ROP Demand Converter:</b> before any FFFC aggregation, each LD Part uses its own ROP to convert <b>01 Demand + 01 Demand FCST-XYS</b>. The first demand bucket receives the ROP-covered quantity; covered weeks become 0; the cutoff week keeps only the amount above ROP; all weeks after cutoff remain exactly as the source. If total horizon demand is below ROP, all existing demand is moved to the first bucket without creating extra quantity. <b>02 Supply / 03 Acc Variance are untouched.</b><br><br><b>Matching key = FFFC</b> from Master List Group No. for both BI LD Part and PO Material. After ROP conversion, the existing logic is unchanged: Stock-0007 and converted demand are combined by FFFC, then PO Backlog is sorted ascending by <b>FFFC → Availability date → PO date → Backlog Qty</b>. Blank dates are placed last. If all four keys are equal, the original PO row order is preserved. <b>Allocation quantity = Qty Convert PO</b> (Order Unit → FFFC BUn). <b>ETA factory XP Need By = the BI timeline bucket immediately before the shortage / Planned Order bucket</b> (example: shortage at 09-Nov-2026 → Need By 02-Nov-2026). If the shortage is already in the first BI bucket, that first bucket is kept. <b>ETD Propose = Need By − lead time</b>. If <b>Qty Convert PO</b> cannot be calculated from units, it automatically uses <b>Backlog Qty</b>. <b>ETA Status</b> compares ETA factory XP Need By with Availability date: earlier = Pull In, later = Push Out, equal = No Change, blank Need By = Excess Supply. When <b>ETA factory XP Need By is blank</b>, <b>ETD Propose is also blank</b>. <b>Gap ETA factory XP Need By &Availability date (Day)</b> = Availability date − ETA factory XP Need By; if Need By is blank, the result is <b>Excess Supply</b>.</p>
+      <button id="runBtn" class="primary" disabled>Process + Export Final</button>
+    </div>
+    <div id="message" class="message"></div>
+  </section>
+
+  <section id="results" class="results">
+    <div class="kpis">
+      <div class="kpi"><div class="label">Planned Order buckets</div><div class="value" id="kDemand">–</div></div>
+      <div class="kpi"><div class="label">PO lines</div><div class="value" id="kLines">–</div></div>
+      <div class="kpi"><div class="label">FFFC mapped</div><div class="value" id="kBun">–</div></div>
+      <div class="kpi warn"><div class="label">Need unit factor</div><div class="value" id="kFactor">–</div></div>
+      <div class="kpi warn"><div class="label">Pull-in required</div><div class="value" id="kPull">–</div></div>
+      <div class="kpi bad"><div class="label">Uncovered demand</div><div class="value" id="kShort">–</div></div>
+    </div>
+    <section class="panel result-panel">
+      <div class="result-head"><div><h2>Final Supply_ETD_Propose preview</h2><div id="resultMeta" class="meta"></div></div><div class="head-actions"><input id="search" class="search" placeholder="Search Material / FFFC / PO / Supplier / Status..."><button id="exportBtn" class="export">Export Again</button></div></div>
+      <div class="table-wrap"><table><thead><tr>
+        <th>Material</th><th>PO Number</th><th>PO Line</th><th>Backlog Qty</th><th>Order Unit</th><th>Availability date</th><th>FFFC</th><th class="bun">BUn</th><th class="qtyc">Qty Convert PO</th><th>ETA factory XP Need By</th><th class="etd">ETD Propose</th><th>ETA Status</th><th>Gap ETA factory XP Need By &Availability date (Day)</th>
+      </tr></thead><tbody id="resultBody"></tbody></table></div>
+
+    </section>
+  </section>
+</main>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const state = { demandFile:null, masterFile:null, supplyFile:null, outputRows:[], outputHeaders:[], resultLines:[], mrp:null, stats:null };
+  const NF = new Intl.NumberFormat('en-US',{maximumFractionDigits:3});
+  const TYPE_DEMAND='01 Demand', TYPE_FCST='01 Demand FCST-XYS', TYPE_SUPPLY='02 Supply', TYPE_ACC='03 Acc Variance';
+  const GENERATED = new Set(['FFFC','BUN','QTY CONVERT PO','DEMAND USED','ETA FACTORY XP NEED BY','ETD PROPOSE','ETA STATUS','PULL-IN DAYS','GAP ETA FACTORY XP NEED BY &AVAILABILITY DATE (DAY)','ALLOCATED QTY','UNCOVERED DEMAND QTY']);
+
+  const norm = v => String(v ?? '').trim().toUpperCase();
+  const normHeader = v => String(v ?? '').trim().toLowerCase().replace(/[\s_\-]+/g,'');
+  const normSpaces = v => String(v ?? '').trim().replace(/\s+/g,' ');
+  const esc = s => String(s ?? '').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+
+  function setMessage(text='',kind='info'){ const el=$('message'); el.textContent=text; el.className=text?`message ${kind}`:'message'; }
+  function updateRun(){ $('runBtn').disabled=!(state.demandFile&&state.masterFile&&state.supplyFile); }
+  function attachFile(inputId,zoneId,nameId,key){
+    const input=$(inputId), zone=$(zoneId);
+    input.addEventListener('change',()=>{ const f=input.files&&input.files[0]; if(!f)return; state[key]=f; $(nameId).textContent=`✓ ${f.name} · ${(f.size/1024/1024).toFixed(1)} MB`; zone.classList.add('loaded'); setMessage(''); updateRun(); });
+    ['dragenter','dragover'].forEach(e=>zone.addEventListener(e,ev=>{ev.preventDefault();zone.classList.add('dragover')}));
+    ['dragleave','drop'].forEach(e=>zone.addEventListener(e,ev=>{ev.preventDefault();zone.classList.remove('dragover')}));
+    zone.addEventListener('drop',ev=>{ const f=ev.dataTransfer.files&&ev.dataTransfer.files[0]; if(!f)return; try{input.files=ev.dataTransfer.files}catch(_){} state[key]=f; $(nameId).textContent=`✓ ${f.name} · ${(f.size/1024/1024).toFixed(1)} MB`; zone.classList.add('loaded'); setMessage(''); updateRun(); });
+  }
+  attachFile('demandFile','demandZone','demandName','demandFile');
+  attachFile('masterFile','masterZone','masterName','masterFile');
+  attachFile('supplyFile','supplyZone','supplyName','supplyFile');
+
+  function toNumber(v){
+    if(typeof v==='number') return Number.isFinite(v)?v:0;
+    if(v===null||v===undefined||String(v).trim()==='') return 0;
+    let s=String(v).trim(), neg=false; if(/^\(.*\)$/.test(s)){neg=true;s=s.slice(1,-1)}
+    const n=Number(s.replace(/,/g,'').replace(/\s/g,'')); return Number.isFinite(n)?(neg?-n:n):0;
+  }
+  function normalizeNumber(n){ if(Math.abs(n)<1e-12)return 0; return Number.isInteger(n)?n:Number(n.toFixed(8)); }
+
+  async function readMatrix(file){
+    const ext=(file.name.split('.').pop()||'').toLowerCase();
+    if(ext==='csv'){
+      const text=(await file.text()).replace(/^\uFEFF/,'');
+      return {matrix:parseCSV(text),sheetName:'CSV'};
+    }
+    const bytes=await file.arrayBuffer();
+    const wb=XLSX.read(bytes,{type:'array',cellDates:false,cellText:true,cellNF:true});
+    if(!wb.SheetNames||!wb.SheetNames.length) throw new Error(`No worksheet found in ${file.name}.`);
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    return {matrix:XLSX.utils.sheet_to_json(ws,{header:1,defval:null,raw:true,blankrows:true}),sheetName:wb.SheetNames[0]};
+  }
+
+  // Header matching is position-independent. Columns may be B/C/D/... and
+  // may contain extra spaces, line breaks or common punctuation differences.
+  function headerKey(v){
+    return String(v??'')
+      .replace(/^\uFEFF/,'')
+      .trim()
+      .toLowerCase()
+      .replace(/&/g,'and')
+      .replace(/[^a-z0-9]+/g,'');
+  }
+  function findHeaderIndex(headers,candidates){
+    const keys=headers.map(headerKey);
+    for(const c of candidates){
+      const idx=keys.indexOf(headerKey(c));
+      if(idx>=0)return idx;
+    }
+    return -1;
+  }
+  function findHeaderRow(matrix,requiredGroups,maxRows=30){
+    const limit=maxRows==null?matrix.length:Math.min(matrix.length,maxRows);
+    for(let r=0;r<limit;r++){
+      const h=matrix[r]||[];
+      if(requiredGroups.every(group=>findHeaderIndex(h,group)>=0)) return r;
+    }
+    return -1;
+  }
+
+  const MASTER_HEADER_GROUPS=[
+    ['Material','Material No','Material No.','Material Number','Material Code','Part','Part No','Part Number'],
+    ['Group No.','Group No','GroupNo','Group Number','Group','FFFC'],
+    ['BUn','Base Unit','Base Unit of Measure','Base UOM','BUOM']
+  ];
+
+  function findMasterHeaderRow(matrix){
+    // Scan the whole worksheet so the Master List header can be on any row,
+    // while each required field can be in any Excel column position.
+    return findHeaderRow(matrix,MASTER_HEADER_GROUPS,null);
+  }
+
+  function headerToPeriod(header){
+    const toISO=d=>{const y=d.getUTCFullYear(),m=String(d.getUTCMonth()+1).padStart(2,'0'),day=String(d.getUTCDate()).padStart(2,'0');return y>=1900&&y<=2200?`${y}-${m}-${day}`:null};
+    const serialToISO=v=>{const s=Math.floor(Number(v));if(!Number.isFinite(s)||s<1||s>100000)return null;return toISO(new Date(Date.UTC(1899,11,30)+s*86400000))};
+    if(typeof header==='number'&&Number.isFinite(header))return serialToISO(header);
+    if(header instanceof Date&&!Number.isNaN(header.getTime()))return toISO(new Date(Date.UTC(header.getFullYear(),header.getMonth(),header.getDate())));
+    const s=String(header??'').trim(); if(!s)return null;
+    if(/^\d+(?:\.\d+)?$/.test(s))return serialToISO(s);
+    let m=s.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
+    if(m){const d=new Date(Date.UTC(+m[1],+m[2]-1,+m[3]));return d.getUTCFullYear()===+m[1]&&d.getUTCMonth()===+m[2]-1&&d.getUTCDate()===+m[3]?toISO(d):null}
+    m=s.match(/^(\d{1,2})[-\/\s]([A-Za-z]{3,9})[-\/\s](\d{2,4})$/);
+    if(m){const months={jan:1,january:1,feb:2,february:2,mar:3,march:3,apr:4,april:4,may:5,jun:6,june:6,jul:7,july:7,aug:8,august:8,sep:9,september:9,oct:10,october:10,nov:11,november:11,dec:12,december:12};const mm=months[m[2].toLowerCase()];if(!mm)return null;let yy=+m[3];if(yy<100)yy+=yy>=70?1900:2000;const d=new Date(Date.UTC(yy,mm-1,+m[1]));return d.getUTCFullYear()===yy&&d.getUTCMonth()===mm-1&&d.getUTCDate()===+m[1]?toISO(d):null}
+    m=s.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{2,4})$/);
+    if(m){let yy=+m[3];if(yy<100)yy+=yy>=70?1900:2000;const d=new Date(Date.UTC(yy,+m[2]-1,+m[1]));if(d.getUTCFullYear()===yy&&d.getUTCMonth()===+m[2]-1&&d.getUTCDate()===+m[1])return toISO(d)}
+    return null;
+  }
+
+  function ropBlockIdentity(row,headers,idxPart){
+    const findOptional=name=>findHeaderIndex(headers,[name]);
+    const idxCorrect=findOptional('Correct PG');
+    const idxMM=findOptional('MM PG');
+    return [
+      idxCorrect>=0?norm(row[idxCorrect]):'',
+      idxMM>=0?norm(row[idxMM]):'',
+      norm(row[idxPart])
+    ].join('¦');
+  }
+
+  // ---------------------------------------------------------------------------
+  // STEP 0 — ROP DEMAND CONVERTER
+  // Runs on the BI source BEFORE Material -> FFFC mapping and before the existing
+  // Stock-0007 / Planned Order calculation. Only 01 Demand and
+  // 01 Demand FCST-XYS timeline cells are changed. Supply / Acc Variance and all
+  // non-timeline fields remain untouched.
+  // ---------------------------------------------------------------------------
+  function applyROPConversion(matrix){
+    if(!matrix||!matrix.length)throw new Error('BI Shortage file is empty.');
+
+    const hr=findHeaderRow(matrix,[[ 'LD Part','LDPart','Material' ],['Type'],['ROP']],30);
+    if(hr<0)throw new Error('BI Shortage: could not find LD Part, Type and ROP header row for ROP Demand Converter.');
+
+    const headers=(matrix[hr]||[]).map(v=>String(v??'').trim());
+    const idxPart=findHeaderIndex(headers,['LD Part','LDPart','Material']);
+    const idxType=findHeaderIndex(headers,['Type']);
+    const idxRop=findHeaderIndex(headers,['ROP']);
+
+    // Use only the contiguous timeline immediately after Type, matching the
+    // standalone ROP Demand Converter behavior.
+    const timeline=[];
+    let timelineStarted=false;
+    for(let c=idxType+1;c<headers.length;c++){
+      const p=headerToPeriod(matrix[hr]?.[c]);
+      if(p){timelineStarted=true;timeline.push({i:c,p});}
+      else if(timelineStarted)break;
+    }
+    if(!timeline.length)throw new Error('BI Shortage: no timeline date columns detected after Type for ROP conversion.');
+
+    // Clone rows so the uploaded source matrix itself is never mutated.
+    const out=matrix.map(row=>Array.isArray(row)?row.slice():[]);
+    const TYPE_D=normSpaces(TYPE_DEMAND);
+    const TYPE_F=normSpaces(TYPE_FCST);
+
+    let processed=0,fullyCovered=0,insufficient=0,skippedNoRop=0,skippedNoPair=0,skippedNoDemand=0,mismatch=0;
+
+    // Create contiguous LD Part blocks. Optional Correct PG + MM PG are included
+    // in the identity when present, exactly to avoid merging visually separate
+    // blocks that happen to use the same LD Part.
+    let r=hr+1;
+    while(r<out.length){
+      const row=out[r]||[];
+      const part=String(row[idxPart]??'').trim();
+      if(!part){r++;continue;}
+
+      const id=ropBlockIdentity(row,headers,idxPart);
+      const rowsByType=new Map();
+      let rr=r;
+      while(rr<out.length){
+        const row2=out[rr]||[];
+        const part2=String(row2[idxPart]??'').trim();
+        if(!part2)break;
+        if(ropBlockIdentity(row2,headers,idxPart)!==id)break;
+        const type=normSpaces(row2[idxType]);
+        if(type&&!rowsByType.has(type))rowsByType.set(type,rr);
+        rr++;
+      }
+
+      const rd=rowsByType.get(TYPE_D), rf=rowsByType.get(TYPE_F);
+      if(rd===undefined||rf===undefined){skippedNoPair++;r=Math.max(rr,r+1);continue;}
+
+      const rop=toNumber(out[rd]?.[idxRop] ?? out[rf]?.[idxRop]);
+      if(!(rop>0)){skippedNoRop++;r=Math.max(rr,r+1);continue;}
+
+      const dVals=timeline.map(t=>toNumber(out[rd]?.[t.i]));
+      const fVals=timeline.map(t=>toNumber(out[rf]?.[t.i]));
+      const combined=dVals.map((v,i)=>normalizeNumber(v+fVals[i]));
+      const originalTotal=normalizeNumber(combined.reduce((a,b)=>a+b,0));
+      if(!(originalTotal>0)){skippedNoDemand++;r=Math.max(rr,r+1);continue;}
+
+      let cumulative=0,cutoff=-1;
+      for(let i=0;i<combined.length;i++){
+        cumulative=normalizeNumber(cumulative+combined[i]);
+        if(cumulative>=rop){cutoff=i;break;}
+      }
+
+      const isFullyCovered=cutoff>=0;
+      if(!isFullyCovered)cutoff=timeline.length-1;
+      const firstBucket=normalizeNumber(isFullyCovered?rop:originalTotal);
+      const residual=normalizeNumber(isFullyCovered?cumulative-rop:0);
+
+      // Covered range becomes zero on both Demand rows.
+      for(let i=0;i<=cutoff;i++){
+        out[rd][timeline[i].i]=0;
+        out[rf][timeline[i].i]=0;
+      }
+
+      // First bucket holds the ROP-covered quantity (or total available demand
+      // when the horizon is insufficient to reach ROP).
+      out[rd][timeline[0].i]=firstBucket;
+
+      // Cutoff keeps only the amount above ROP. If cutoff is the first week,
+      // FCST stores the residual so Demand+FCST total remains exactly preserved.
+      if(isFullyCovered&&Math.abs(residual)>1e-12){
+        if(cutoff===0)out[rf][timeline[0].i]=residual;
+        else{
+          out[rd][timeline[cutoff].i]=residual;
+          out[rf][timeline[cutoff].i]=0;
+        }
+      }
+      // Weeks after cutoff are not touched at all.
+
+      let convertedTotal=0;
+      for(const t of timeline)convertedTotal+=toNumber(out[rd]?.[t.i])+toNumber(out[rf]?.[t.i]);
+      convertedTotal=normalizeNumber(convertedTotal);
+      if(Math.abs(convertedTotal-originalTotal)>0.000001)mismatch++;
+
+      processed++;
+      if(isFullyCovered)fullyCovered++;else insufficient++;
+      r=Math.max(rr,r+1);
+    }
+
+    if(mismatch>0)throw new Error(`ROP Demand Converter validation failed on ${mismatch} block(s): converted Demand + FCST total does not match source total.`);
+
+    return {
+      matrix:out,
+      stats:{processed,fullyCovered,insufficient,skippedNoRop,skippedNoPair,skippedNoDemand,mismatch,headerRow:hr+1,timelinePeriods:timeline.length}
+    };
+  }
+
+  function resolveMaster(material,master){
+    const key=norm(material), info=master.materialMap.get(key);
+    if(!info) return {material:key,groupNo:'',groupKey:key,bun:''};
+    const groupNo=norm(info.groupNo), groupKey=groupNo||key;
+    const groupBun=groupNo?(master.groupBunMap.get(groupNo)||''):'';
+    return {material:key,groupNo,groupKey,bun:groupBun||info.bun||''};
+  }
+
+  function buildPlannedDemand(matrix,master){
+    if(!matrix||!matrix.length)throw new Error('BI Shortage file is empty.');
+    const hr=findHeaderRow(matrix,[[ 'LD Part','LDPart','Material' ],['Type'],['Stock-0007','Stock 0007','Stock']]);
+    if(hr<0)throw new Error('BI Shortage: could not find LD Part, Type and Stock-0007 header row.');
+    const rawHeaders=matrix[hr]||[], headers=rawHeaders.map(v=>String(v??'').trim());
+    const idxPart=findHeaderIndex(headers,['LD Part','LDPart','Material']);
+    const idxType=findHeaderIndex(headers,['Type']);
+    const idxStock=findHeaderIndex(headers,['Stock-0007','Stock 0007','Stock']);
+    const timeline=[]; rawHeaders.forEach((h,i)=>{const p=headerToPeriod(h);if(p)timeline.push({i,p})});
+    if(!timeline.length)throw new Error('BI Shortage: no timeline date columns detected.');
+    const periods=[...new Set(timeline.map(x=>x.p))].sort();
+
+    // IMPORTANT:
+    // ROP conversion has already been applied per LD Part before this function.
+    // 1) BI LD Part -> FFFC via Master List Group No.
+    // 2) Stock and the ROP-converted demand of all LD Parts in the same FFFC are pooled.
+    // 3) If Group No. is blank/unmapped, LD Part itself is the fallback key.
+    const grouped=new Map();
+    const seenParts=new Set();
+    let sourceParts=0,groupMappedParts=0,fallbackParts=0;
+
+    for(let r=hr+1;r<matrix.length;r++){
+      const row=matrix[r]||[], partRaw=String(row[idxPart]??'').trim(), type=normSpaces(row[idxType]);
+      if(!partRaw||![TYPE_DEMAND,TYPE_FCST,TYPE_SUPPLY].includes(type))continue;
+
+      const part=norm(partRaw), resolved=resolveMaster(part,master), key=resolved.groupKey;
+      if(!seenParts.has(part)){
+        seenParts.add(part); sourceParts++;
+        if(resolved.groupNo)groupMappedParts++;else fallbackParts++;
+      }
+
+      if(!grouped.has(key))grouped.set(key,{
+        groupNo:resolved.groupNo,
+        groupKey:key,
+        members:new Set(),
+        stockByPart:new Map(),
+        demand:{}
+      });
+      const item=grouped.get(key);
+      item.members.add(part);
+
+      // Stock-0007 repeats on each Type row. Keep one stock value per LD Part,
+      // then sum across members of the same Group No. to avoid double counting.
+      const stockCell=row[idxStock];
+      if(!item.stockByPart.has(part)){
+        item.stockByPart.set(part,toNumber(stockCell));
+      }else{
+        const old=item.stockByPart.get(part);
+        if((!Number.isFinite(old)||old===0)&&stockCell!==null&&stockCell!==undefined&&stockCell!==''){
+          item.stockByPart.set(part,toNumber(stockCell));
+        }
+      }
+
+      if(type===TYPE_DEMAND||type===TYPE_FCST){
+        for(const t of timeline)item.demand[t.p]=(item.demand[t.p]||0)+toNumber(row[t.i]);
+      }
+    }
+
+    const records=[];
+    for(const [groupKey,item] of grouped.entries()){
+      let availableStock=0;
+      for(const qty of item.stockByPart.values())availableStock+=Math.max(0,normalizeNumber(qty));
+      availableStock=normalizeNumber(availableStock);
+
+      for(let pi=0;pi<periods.length;pi++){
+        const p=periods[pi];
+        const currentDemand=Math.max(0,normalizeNumber(item.demand[p]||0));
+        const planned=normalizeNumber(Math.max(0,currentDemand-availableStock));
+        availableStock=normalizeNumber(Math.max(0,availableStock-currentDemand));
+        if(planned>0){
+          // ETA factory XP Need By must be BEFORE the shortage bucket.
+          // Example: shortage starts at 09-Nov-2026 -> Need By = previous BI timeline bucket 02-Nov-2026.
+          // If the shortage is already in the first available BI bucket, keep that first bucket
+          // because no earlier source timeline bucket exists.
+          const needByPeriod=pi>0?periods[pi-1]:p;
+          records.push({
+            'Group Key':groupKey,
+            'Group No.':item.groupNo,
+            'Attribute':p,
+            'Need By Period':needByPeriod,
+            'Value':planned
+          });
+        }
+      }
+    }
+    return {
+      records,
+      parts:sourceParts,
+      groups:grouped.size,
+      groupMappedParts,
+      fallbackParts,
+      periods:periods.length,
+      headerRow:hr+1
+    };
+  }
+
+  function normalizedUnit(v){
+    const u=norm(v).replace(/\s+/g,'');
+    const alias={'INCH':'IN','INCHES':'IN','"':'IN','FEET':'FT','FOOT':'FT','METER':'M','METRE':'M','MILLIMETER':'MM','MILLIMETRE':'MM','GRAM':'G','GRAMS':'G','KILOGRAM':'KG','KILOGRAMS':'KG','POUND':'LB','POUNDS':'LB','LBS':'LB','OUNCE':'OZ','OUNCES':'OZ','PC':'EA','PCS':'EA','PIECE':'EA','PIECES':'EA'};
+    return alias[u]||u;
+  }
+  const UNIT_DEF={MM:{dim:'L',factor:1},CM:{dim:'L',factor:10},M:{dim:'L',factor:1000},IN:{dim:'L',factor:25.4},FT:{dim:'L',factor:304.8},G:{dim:'W',factor:1},KG:{dim:'W',factor:1000},LB:{dim:'W',factor:453.59237},OZ:{dim:'W',factor:28.349523125},EA:{dim:'C',factor:1}};
+  function convertQty(qty,orderUnitRaw,bunRaw){
+    const n=toNumber(qty),from=normalizedUnit(orderUnitRaw),to=normalizedUnit(bunRaw);
+    if(!from||!to)return {value:null,status:'nounit'};
+    if(from===to)return {value:n,status:'same'};
+    const a=UNIT_DEF[from],b=UNIT_DEF[to]; if(!a||!b||a.dim!==b.dim)return {value:null,status:'needfactor'};
+    return {value:normalizeNumber(n*a.factor/b.factor),status:'converted'};
+  }
+
+  function buildMasterMap(matrix){
+    const hr=findMasterHeaderRow(matrix);
+    if(hr<0)throw new Error('Master List: could not find Material, Group No./FFFC and BUn/Base Unit columns. Column positions may be anywhere, but the header names must exist in the same header row.');
+
+    const headers=matrix[hr]||[];
+    const matIdx=findHeaderIndex(headers,MASTER_HEADER_GROUPS[0]);
+    const groupIdx=findHeaderIndex(headers,MASTER_HEADER_GROUPS[1]);
+
+    // Accept one or multiple BUn/Base Unit columns anywhere in the sheet.
+    const bunAliases=new Set(MASTER_HEADER_GROUPS[2].map(headerKey));
+    const bunIdxs=headers.map((h,i)=>bunAliases.has(headerKey(h))?i:-1).filter(i=>i>=0);
+
+    const materialMap=new Map(), groupBunMap=new Map();
+    let duplicates=0,groupConflicts=0,materialsWithGroup=0;
+
+    for(let r=hr+1;r<matrix.length;r++){
+      const row=matrix[r]||[], material=norm(row[matIdx]); if(!material)continue;
+      const groupNo=norm(row[groupIdx]);
+      let bun='';
+      for(const i of bunIdxs){
+        if(String(row[i]??'').trim()!==''){
+          bun=String(row[i]).trim();
+          break;
+        }
+      }
+
+      if(!materialMap.has(material)){
+        materialMap.set(material,{groupNo,bun});
+      }else{
+        duplicates++;
+        const old=materialMap.get(material);
+        if(!old.groupNo&&groupNo)old.groupNo=groupNo;
+        if(!old.bun&&bun)old.bun=bun;
+        if(old.groupNo&&groupNo&&old.groupNo!==groupNo)groupConflicts++;
+      }
+
+      if(groupNo&&bun){
+        if(!groupBunMap.has(groupNo))groupBunMap.set(groupNo,bun);
+        else if(norm(groupBunMap.get(groupNo))!==norm(bun))groupConflicts++;
+      }
+    }
+
+    for(const info of materialMap.values())if(info.groupNo)materialsWithGroup++;
+    return {
+      materialMap,groupBunMap,duplicates,groupConflicts,materialsWithGroup,
+      headerRow:hr+1,
+      detectedColumns:{material:matIdx+1,groupNo:groupIdx+1,bun:bunIdxs.map(i=>i+1)}
+    };
+  }
+
+  function compareTextAsc(a,b){
+    return String(a??'').localeCompare(String(b??''),undefined,{numeric:true,sensitivity:'base'});
+  }
+
+  function compareDateAsc(a,b){
+    // Valid dates first, blanks/invalid dates last.
+    if(a&&b)return a-b;
+    if(a)return -1;
+    if(b)return 1;
+    return 0;
+  }
+
+  function prepareSupply(matrix,master){
+    const hr=findHeaderRow(matrix,[['Material'],['Backlog Qty'],['Order Unit'],['Availability date']],30);
+    if(hr<0)throw new Error('PO Backlog: could not find Material, Backlog Qty, Order Unit and Availability date columns.');
+    const headers=(matrix[hr]||[]).map(v=>String(v??'').trim());
+    const idxMat=findHeaderIndex(headers,['Material']), idxQty=findHeaderIndex(headers,['Backlog Qty']), idxUnit=findHeaderIndex(headers,['Order Unit']), idxAvail=findHeaderIndex(headers,['Availability date']);
+    const idxPO=findHeaderIndex(headers,['PO Number']), idxPOLine=findHeaderIndex(headers,['PO Line Item','PO Line']), idxPODate=findHeaderIndex(headers,['PO date','PO Date','PO DATE']);
+
+    // Keep every original PO OTD Backlog column in the same order.
+    // If a previously processed file is accidentally used, strip old generated columns first.
+    const kept=[]; headers.forEach((h,i)=>{if(!GENERATED.has(norm(h)))kept.push({h,i})});
+    const originalHeaders=kept.map(x=>x.h);
+
+    const rows=[];
+    let bunMatched=0,needFactor=0,converted=0,unmatched=0,groupMapped=0,groupFallback=0;
+    const unresolved=new Map();
+
+    for(let r=hr+1;r<matrix.length;r++){
+      const src=matrix[r]||[]; if(src.every(v=>v===null||v===undefined||String(v).trim()===''))continue;
+      const material=norm(src[idxMat]); if(!material)continue;
+
+      const resolved=resolveMaster(material,master);
+      const hasMaster=master.materialMap.has(material);
+      const groupNo=resolved.groupNo, groupKey=resolved.groupKey, bun=resolved.bun;
+      const hasBun=String(bun??'').trim()!=='';
+
+      if(groupNo)groupMapped++;else groupFallback++;
+      if(hasBun)bunMatched++;else unmatched++;
+
+      const conv=hasBun?convertQty(src[idxQty],src[idxUnit],bun):{value:null,status:hasMaster?'nounit':'unmatched'};
+      if(conv.status==='same'||conv.status==='converted')converted++;
+      if(conv.status==='needfactor'){
+        needFactor++;
+        const pair=`${norm(src[idxUnit])||'(blank)'} → ${norm(bun)||'(blank)'}`;
+        unresolved.set(pair,(unresolved.get(pair)||0)+1);
+      }
+
+      const values=kept.map(x=>src[x.i]??'');
+      const backlogQty=Math.max(0,toNumber(src[idxQty]));
+      // Fallback requested:
+      // If unit conversion has no result, Qty Convert PO = Backlog Qty.
+      // All other FIFO / ETA / ETD logic remains unchanged.
+      const qtyConverted=conv.value===null?backlogQty:conv.value;
+
+      rows.push({
+        values,
+        material,
+        displayMaterial:String(src[idxMat]??'').trim(),
+        groupNo,
+        groupKey,
+        backlogQty,
+        orderUnit:src[idxUnit],
+        bun,
+        qtyConverted,
+        currentEta:toDate(src[idxAvail]),
+        poDate:idxPODate>=0?toDate(src[idxPODate]):null,
+        po:idxPO>=0?String(src[idxPO]??''):'',
+        poLine:idxPOLine>=0?String(src[idxPOLine]??''):'',
+        originalOrder:r,
+        conversionStatus:conv.status,
+        needBy:null,
+        etdPropose:null,
+        gapEtaDays:'',
+        allocatedQty:0,
+        uncoveredQty:0,
+        status:''
+      });
+    }
+
+    // FIFO preprocessing:
+    // Sort the PO backlog before allocation using the user's requested priority.
+    rows.sort((a,b)=>{
+      let c=compareTextAsc(a.groupKey,b.groupKey);   // FFFC / Group No. ASC
+      if(c!==0)return c;
+
+      c=compareDateAsc(a.currentEta,b.currentEta);   // Availability date ASC
+      if(c!==0)return c;
+
+      c=compareDateAsc(a.poDate,b.poDate);           // PO date ASC
+      if(c!==0)return c;
+
+      c=(a.backlogQty||0)-(b.backlogQty||0);         // Backlog Qty ASC
+      if(Math.abs(c)>1e-12)return c;
+
+      return (a.originalOrder||0)-(b.originalOrder||0);
+    });
+
+    return {
+      headers:originalHeaders,
+      rows,
+      stats:{
+        bunMatched,unmatched,needFactor,converted,unresolved,
+        groupMapped,groupFallback,headerRow:hr+1,
+        fifoSort:'FFFC → Availability date → PO date → Backlog Qty (ASC)'
+      }
+    };
+  }
+
+  function calendarDate(y,m,d){return new Date(Date.UTC(y,m-1,d))}
+  function toDate(value){
+    if(value===null||value===undefined||value==='')return null;
+    if(typeof value==='number'&&window.XLSX&&XLSX.SSF){const p=XLSX.SSF.parse_date_code(value);if(p)return calendarDate(p.y,p.m,p.d)}
+    if(typeof value==='string'){const s=value.trim();let m=s.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})/);if(m)return calendarDate(+m[1],+m[2],+m[3]);const d=new Date(s);if(!Number.isNaN(d.getTime()))return calendarDate(d.getFullYear(),d.getMonth()+1,d.getDate());return null}
+    if(value instanceof Date&&!Number.isNaN(value.getTime()))return calendarDate(value.getFullYear(),value.getMonth()+1,value.getDate());
+    return null;
+  }
+  function dateKey(d){return d?`${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`:''}
+  function formatDate(v){const d=toDate(v);return d?new Intl.DateTimeFormat('en-GB',{day:'2-digit',month:'short',year:'numeric',timeZone:'UTC'}).format(d):'–'}
+  function addDays(d,n){if(!d)return null;const x=new Date(d.getTime());x.setUTCDate(x.getUTCDate()+n);return x}
+  function dayDiff(later,earlier){return Math.max(0,Math.round((later-earlier)/86400000))}
+  function toExcelDateSerial(d){return Math.round((d.getTime()-Date.UTC(1899,11,30))/86400000)}
+
+  function allocateETD(demandRecords,supply){
+    const lead=Math.max(0,Math.floor(toNumber($('leadDays').value)));
+
+    // Demand is already combined by FFFC (or Material fallback).
+    const demandByGroup=new Map();
+    for(const row of demandRecords){
+      const key=norm(row['Group Key']||row['Group No.']||row['LD Part']);
+      // FIFO allocation uses the BI bucket immediately BEFORE the shortage bucket
+      // as ETA factory XP Need By. Attribute remains the actual shortage / Planned Order bucket.
+      const date=toDate(row['Need By Period']||row['Attribute']),qty=Math.max(0,toNumber(row['Value']));
+      if(!key||!date||qty<=0)continue;
+      if(!demandByGroup.has(key))demandByGroup.set(key,new Map());
+      const byDate=demandByGroup.get(key),dk=dateKey(date),bucket=byDate.get(dk)||{date,qty:0};
+      bucket.qty+=qty;byDate.set(dk,bucket);
+    }
+    const normalized=new Map();
+    for(const [key,byDate] of demandByGroup.entries())normalized.set(key,[...byDate.values()].filter(x=>x.qty>0).sort((a,b)=>a.date-b.date));
+
+    // PO rows are already FIFO-sorted globally by FFFC → Availability date → PO date → Backlog Qty.
+    const linesByGroup=new Map();
+    for(const line of supply.rows){
+      const key=line.groupKey||line.material;
+      if(!linesByGroup.has(key))linesByGroup.set(key,[]);
+      linesByGroup.get(key).push(line);
+    }
+
+    const shortages=new Map(); let matchedGroups=0;
+    for(const [key,lines] of linesByGroup.entries()){
+      const buckets=normalized.get(key)||[];
+      if(!buckets.length){
+        for(const line of lines){line.etdPropose=null;line.status='Excess Supply';line.gapEtaDays='Excess Supply'}
+        continue;
+      }
+
+      matchedGroups++;
+      let supplyIndex=0,groupShortage=0;
+
+      for(const bucket of buckets){
+        let rem=bucket.qty;
+        while(rem>0&&supplyIndex<lines.length){
+          const line=lines[supplyIndex];
+          const lineQty=line.qtyConverted===null?0:Math.max(0,line.qtyConverted);
+          const remainSupply=Math.max(0,lineQty-line.allocatedQty);
+          if(remainSupply<=0){supplyIndex++;continue}
+          const allocated=Math.min(rem,remainSupply);
+          if(!line.needBy)line.needBy=bucket.date;
+          line.allocatedQty=normalizeNumber(line.allocatedQty+allocated);
+          rem=normalizeNumber(rem-allocated);
+          if(line.allocatedQty>=lineQty-1e-9)supplyIndex++;
+        }
+        groupShortage=normalizeNumber(groupShortage+rem);
+      }
+
+      if(groupShortage>0)shortages.set(key,groupShortage);
+      for(const line of lines)line.uncoveredQty=groupShortage;
+    }
+
+    for(const line of supply.rows){
+      const qty=Math.max(0,line.qtyConverted||0);
+      if(qty<=0){line.etdPropose=line.currentEta;line.status='No backlog quantity';continue}
+      if(!line.needBy){line.etdPropose=null;line.status='Excess Supply';line.gapEtaDays='Excess Supply';continue}
+
+      const target=addDays(line.needBy,-lead);
+      line.etdPropose=target;
+
+      // ETA Status logic:
+      // Need By < Availability date  => Pull In
+      // Need By > Availability date  => Push Out
+      // Need By = Availability date  => No Change
+      // Need By blank                => Excess Supply
+      // If Availability date is blank, keep the existing missing-ETA behavior.
+      if(!line.currentEta){line.status='ETA missing — target calculated';continue}
+
+      const needByKey=dateKey(line.needBy);
+      const availabilityKey=dateKey(line.currentEta);
+
+      if(needByKey<availabilityKey)line.status='Pull In';
+      else if(needByKey>availabilityKey)line.status='Push Out';
+      else line.status='No Change';
+
+      // Gap ETA factory XP Need By &Availability date (Day)
+      // Equivalent logic: IF(Need By="","Excess Supply", Availability date - Need By)
+      // Positive = Availability date is later than Need By
+      // Negative = Availability date is earlier than Need By
+      if(!line.needBy)line.gapEtaDays='Excess Supply';
+      else if(line.currentEta)line.gapEtaDays=Math.round((line.currentEta-line.needBy)/86400000);
+      else line.gapEtaDays='';
+    }
+
+    const derivedHeaders=['FFFC','BUn','Qty Convert PO','ETA factory XP Need By','ETD Propose','ETA Status','Gap ETA factory XP Need By &Availability date (Day)'];
+    const outputHeaders=[...supply.headers,...derivedHeaders];
+    const outputRows=supply.rows.map(line=>[
+      ...line.values,
+      line.groupNo||line.material||'',
+      line.bun??'',
+      line.qtyConverted===null?'':line.qtyConverted,
+      line.needBy?dateKey(line.needBy):'',
+      line.etdPropose?dateKey(line.etdPropose):'',
+      line.status,
+      line.gapEtaDays
+    ]);
+
+    return {
+      outputHeaders,outputRows,lines:supply.rows,
+      stats:{
+        lead,
+        matchedGroups,
+        pullIn:supply.rows.filter(x=>x.status==='Pull In').length,
+        onTime:supply.rows.filter(x=>x.status==='No Change').length,
+        shortageParts:shortages.size,
+        shortageQty:[...shortages.values()].reduce((s,q)=>s+q,0)
+      }
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+  // MRP TABLE TAB
+  // Creates an Excel sheet shaped like the BI/MRP view:
+  //   Header row 1: Attribute + timeline dates
+  //   Header row 2: source fields + Qty under every timeline date
+  //   Four rows per LD Part: Demand / FCST / Supply / Acc Variance
+  // Demand + FCST are taken AFTER the ROP converter. Proposed PO supply is placed
+  // into the ETA factory XP Need By bucket. Acc Variance is recalculated as:
+  // previous balance - Demand - FCST + Supply.
+  // Existing ETD/FIFO logic is not changed; this is an additional output tab only.
+  // ---------------------------------------------------------------------------
+  function buildMRPTable(matrix,master,finalLines){
+    if(!matrix||!matrix.length)return null;
+    const hr=findHeaderRow(matrix,[[ 'LD Part','LDPart','Material' ],['Type'],['Stock-0007','Stock 0007','Stock']],30);
+    if(hr<0)return null;
+
+    const rawHeaders=matrix[hr]||[];
+    const headers=rawHeaders.map(v=>String(v??'').trim());
+    const idxPart=findHeaderIndex(headers,['LD Part','LDPart','Material']);
+    const idxType=findHeaderIndex(headers,['Type']);
+    const idxStock=findHeaderIndex(headers,['Stock-0007','Stock 0007','Stock']);
+
+    // Match the same contiguous timeline used by the ROP converter.
+    const timeline=[];
+    let started=false;
+    for(let c=idxType+1;c<rawHeaders.length;c++){
+      const p=headerToPeriod(rawHeaders[c]);
+      if(p){started=true;timeline.push({i:c,p,raw:rawHeaders[c]});}
+      else if(started)break;
+    }
+    if(!timeline.length)return null;
+
+    const timelinePos=new Map(timeline.map((t,i)=>[t.p,i]));
+    const TYPE_D=normSpaces(TYPE_DEMAND), TYPE_F=normSpaces(TYPE_FCST), TYPE_S=normSpaces(TYPE_SUPPLY), TYPE_A=normSpaces(TYPE_ACC);
+
+    // Read contiguous 4-row LD Part blocks in source order.
+    const blocks=[];
+    let r=hr+1;
+    while(r<matrix.length){
+      const row=matrix[r]||[];
+      const partRaw=String(row[idxPart]??'').trim();
+      if(!partRaw){r++;continue;}
+      const id=ropBlockIdentity(row,headers,idxPart);
+      const rowsByType=new Map();
+      let rr=r;
+      while(rr<matrix.length){
+        const row2=matrix[rr]||[];
+        const part2=String(row2[idxPart]??'').trim();
+        if(!part2||ropBlockIdentity(row2,headers,idxPart)!==id)break;
+        const type=normSpaces(row2[idxType]);
+        if(type&&!rowsByType.has(type))rowsByType.set(type,rr);
+        rr++;
+      }
+
+      const rd=rowsByType.get(TYPE_D), rf=rowsByType.get(TYPE_F), rs=rowsByType.get(TYPE_S), ra=rowsByType.get(TYPE_A);
+      if(rd!==undefined||rf!==undefined||rs!==undefined||ra!==undefined){
+        const baseIndex=rd??rf??rs??ra;
+        const part=norm(matrix[baseIndex]?.[idxPart]);
+        const resolved=resolveMaster(part,master);
+        const stockCandidates=[rd,rf,rs,ra].filter(x=>x!==undefined).map(x=>matrix[x]?.[idxStock]);
+        let stock=0;
+        for(const v of stockCandidates){
+          if(v!==null&&v!==undefined&&String(v).trim()!==''){stock=toNumber(v);break;}
+        }
+        blocks.push({id,part,groupKey:resolved.groupKey,groupNo:resolved.groupNo,rowsByType,baseIndex,stock,sourceOrder:r});
+      }
+      r=Math.max(rr,r+1);
+    }
+
+    // Proposed PO quantities by FFFC + Need By date. Use full Qty Convert PO for
+    // a PO line that has a Need By bucket because the MRP supply row represents
+    // the whole incoming PO quantity. Excess Supply lines without Need By are not
+    // forced into an arbitrary MRP week.
+    const supplyByGroupDate=new Map();
+    for(const line of finalLines||[]){
+      if(!line.needBy)continue;
+      const qty=Math.max(0,normalizeNumber(line.qtyConverted||0));
+      if(!(qty>0))continue;
+      const key=norm(line.groupKey||line.groupNo||line.material);
+      const dk=dateKey(line.needBy);
+      if(!key||!dk||!timelinePos.has(dk))continue;
+      if(!supplyByGroupDate.has(key))supplyByGroupDate.set(key,new Map());
+      const m=supplyByGroupDate.get(key);
+      m.set(dk,normalizeNumber((m.get(dk)||0)+qty));
+    }
+
+    // Calculate each block's own shortage need by Need By week. This is only used
+    // to distribute a pooled FFFC supply across multiple LD Parts without double
+    // counting. If an FFFC has one LD Part, all supply naturally goes there.
+    const needByBlock=new Map();
+    for(const block of blocks){
+      const rd=block.rowsByType.get(TYPE_D), rf=block.rowsByType.get(TYPE_F);
+      const dVals=timeline.map(t=>toNumber(rd!==undefined?matrix[rd]?.[t.i]:0));
+      const fVals=timeline.map(t=>toNumber(rf!==undefined?matrix[rf]?.[t.i]:0));
+      let available=Math.max(0,normalizeNumber(block.stock));
+      const needMap=new Map();
+      for(let i=0;i<timeline.length;i++){
+        const dem=Math.max(0,normalizeNumber(dVals[i]+fVals[i]));
+        const planned=normalizeNumber(Math.max(0,dem-available));
+        available=normalizeNumber(Math.max(0,available-dem));
+        if(planned>0){
+          const needIdx=i>0?i-1:i;
+          const dk=timeline[needIdx].p;
+          needMap.set(dk,normalizeNumber((needMap.get(dk)||0)+planned));
+        }
+      }
+      needByBlock.set(block.id,needMap);
+    }
+
+    // Distribute each FFFC/date supply to member blocks. Priority: actual planned
+    // shortage in that Need By week, then source order for any remaining quantity.
+    const assignedSupply=new Map(); // block.id -> Map(date -> qty)
+    for(const block of blocks)assignedSupply.set(block.id,new Map());
+    const blocksByGroup=new Map();
+    for(const block of blocks){
+      if(!blocksByGroup.has(block.groupKey))blocksByGroup.set(block.groupKey,[]);
+      blocksByGroup.get(block.groupKey).push(block);
+    }
+
+    for(const [groupKey,byDate] of supplyByGroupDate.entries()){
+      const members=(blocksByGroup.get(groupKey)||[]).slice().sort((a,b)=>a.sourceOrder-b.sourceOrder);
+      if(!members.length)continue;
+      for(const [dk,totalQtyRaw] of byDate.entries()){
+        let rem=Math.max(0,normalizeNumber(totalQtyRaw));
+        for(const block of members){
+          if(rem<=0)break;
+          const need=Math.max(0,normalizeNumber(needByBlock.get(block.id)?.get(dk)||0));
+          if(need<=0)continue;
+          const q=Math.min(rem,need);
+          const m=assignedSupply.get(block.id);
+          m.set(dk,normalizeNumber((m.get(dk)||0)+q));
+          rem=normalizeNumber(rem-q);
+        }
+        if(rem>0){
+          const m=assignedSupply.get(members[0].id);
+          m.set(dk,normalizeNumber((m.get(dk)||0)+rem));
+        }
+      }
+    }
+
+    // Output keeps all source columns from the first column through Type, then the
+    // detected timeline. Add/refresh FFFC immediately before LD Part so the MRP
+    // sheet matches the requested layout: Correct PG | MM PG | FFFC | LD Part | ...
+    // FFFC comes from Master List Group No.; if Group No. is blank/unmapped, the
+    // same Material/LD Part fallback key used by the existing logic is shown.
+    const existingFFFCIdx=findHeaderIndex(headers,['FFFC']);
+    const hasFFFCInLeft=existingFFFCIdx>=0&&existingFFFCIdx<=idxType;
+    const leftColumns=[];
+    for(let c=0;c<=idxType;c++){
+      if(c===idxPart&&!hasFFFCInLeft)leftColumns.push({kind:'fffc',header:'FFFC',sourceIndex:-1});
+      if(c===existingFFFCIdx)leftColumns.push({kind:'fffc',header:'FFFC',sourceIndex:c});
+      else leftColumns.push({kind:'source',header:headers[c],sourceIndex:c});
+    }
+    const leftHeaders=leftColumns.map(x=>x.header);
+    const typeOutIdx=leftColumns.findIndex(x=>x.kind==='source'&&x.sourceIndex===idxType);
+    const headerTop=[...leftHeaders.map((_,i)=>i===0?'Attribute':''),...timeline.map(t=>t.p)];
+    const headerBottom=[...leftHeaders,...timeline.map(()=> 'Qty')];
+    const rows=[];
+    const rowTypes=[];
+
+    function sourceTemplate(block,typeNorm){
+      const ri=block.rowsByType.get(typeNorm);
+      const src=ri!==undefined?(matrix[ri]||[]):(matrix[block.baseIndex]||[]);
+      const fffc=block.groupNo||block.groupKey||block.part||'';
+      const vals=leftColumns.map(col=>col.kind==='fffc'?fffc:(src[col.sourceIndex]??''));
+      if(typeOutIdx>=0)vals[typeOutIdx]=typeNorm;
+      return vals;
+    }
+
+    for(const block of blocks){
+      const rd=block.rowsByType.get(TYPE_D), rf=block.rowsByType.get(TYPE_F);
+      const dVals=timeline.map(t=>normalizeNumber(toNumber(rd!==undefined?matrix[rd]?.[t.i]:0)));
+      const fVals=timeline.map(t=>normalizeNumber(toNumber(rf!==undefined?matrix[rf]?.[t.i]:0)));
+      const supplyVals=timeline.map(t=>normalizeNumber(assignedSupply.get(block.id)?.get(t.p)||0));
+      const accVals=[];
+      let balance=normalizeNumber(block.stock);
+      for(let i=0;i<timeline.length;i++){
+        balance=normalizeNumber(balance-dVals[i]-fVals[i]+supplyVals[i]);
+        accVals.push(balance);
+      }
+
+      const four=[
+        [TYPE_D, dVals],
+        [TYPE_F, fVals],
+        [TYPE_S, supplyVals],
+        [TYPE_A, accVals]
+      ];
+      for(const [typeNorm,vals] of four){
+        rows.push([...sourceTemplate(block,typeNorm),...vals]);
+        rowTypes.push(typeNorm);
+      }
+    }
+
+    return {
+      headerTop,headerBottom,rows,rowTypes,leftCount:leftHeaders.length,
+      timelineCount:timeline.length,
+      blocks:blocks.length,
+      supplyQty:[...supplyByGroupDate.values()].reduce((s,m)=>s+[...m.values()].reduce((a,b)=>a+b,0),0)
+    };
+  }
+
+  function makeMRPWorksheet(mrp){
+    if(!mrp)return null;
+    // Keep the row-type constants in this function scope as well.
+    // TYPE_S / TYPE_A inside buildMRPTable() are local variables and are not
+    // visible here, which previously caused: "TYPE_S is not defined".
+    const TYPE_S=normSpaces(TYPE_SUPPLY);
+    const TYPE_A=normSpaces(TYPE_ACC);
+    const aoa=[mrp.headerTop,mrp.headerBottom,...mrp.rows];
+    const ws=XLSX.utils.aoa_to_sheet(aoa);
+    const lastRow=aoa.length-1, lastCol=mrp.headerBottom.length-1;
+    const thin={style:'thin',color:{rgb:'FFD9D9D9'}};
+    const header1={font:{name:'Arial',sz:10,bold:false},fill:{patternType:'solid',fgColor:{rgb:'FFF2F2F2'}},alignment:{horizontal:'center',vertical:'center'},border:{bottom:thin}};
+    const header2={font:{name:'Arial',sz:10,bold:false},fill:{patternType:'solid',fgColor:{rgb:'FFF2F2F2'}},alignment:{horizontal:'left',vertical:'center'},border:{bottom:thin}};
+    const supplyFill={patternType:'solid',fgColor:{rgb:'FFFFE699'}};
+    const negativeFill={patternType:'solid',fgColor:{rgb:'FFF4CCCC'}};
+
+    for(let c=0;c<=lastCol;c++){
+      const a1=XLSX.utils.encode_cell({r:0,c});
+      const a2=XLSX.utils.encode_cell({r:1,c});
+      if(ws[a1])ws[a1].s=header1;
+      if(ws[a2])ws[a2].s=header2;
+    }
+
+    // Timeline header row 1 is a real Excel date with d-mmm-yy formatting.
+    for(let i=0;i<mrp.timelineCount;i++){
+      const c=mrp.leftCount+i;
+      const d=toDate(mrp.headerTop[c]);
+      if(d){
+        const a=XLSX.utils.encode_cell({r:0,c});
+        ws[a]={t:'n',v:toExcelDateSerial(d),z:'d-mmm-yy',s:header1};
+      }
+    }
+
+    // Format timeline quantities and highlight Supply / negative Acc Variance.
+    for(let ri=0;ri<mrp.rows.length;ri++){
+      const excelRow=ri+2;
+      const type=mrp.rowTypes[ri];
+      for(let i=0;i<mrp.timelineCount;i++){
+        const c=mrp.leftCount+i;
+        const a=XLSX.utils.encode_cell({r:excelRow,c});
+        const cell=ws[a];
+        if(!cell)continue;
+        if(cell.t==='n')cell.z='#,##0';
+        if(type===TYPE_S&&toNumber(cell.v)>0)cell.s={fill:supplyFill,font:{name:'Arial',sz:10},alignment:{horizontal:'right'}};
+        if(type===TYPE_A&&toNumber(cell.v)<0)cell.s={fill:negativeFill,font:{name:'Arial',sz:10,color:{rgb:'FF9C0006'}},alignment:{horizontal:'right'}};
+      }
+    }
+
+    // Date-format Time Date if present.
+    const timeDateCi=mrp.headerBottom.findIndex(h=>normHeader(h)===normHeader('Time Date'));
+    if(timeDateCi>=0){
+      for(let r=2;r<=lastRow;r++){
+        const a=XLSX.utils.encode_cell({r,c:timeDateCi});
+        const d=toDate(ws[a]?.v);
+        if(d){
+          const oldStyle=ws[a]?.s;
+          ws[a]={t:'n',v:toExcelDateSerial(d),z:'dd-mmm-yy'};
+          if(oldStyle)ws[a].s=oldStyle;
+        }
+      }
+    }
+
+    // Requested MRP date formatting:
+    // 1st Shortage Date_Stock and 1st Shortage Date_DT must display as dd-mmm-yy
+    // regardless of whether the BI source stores them as Excel serial numbers or dates.
+    const shortageDateHeaders=[
+      '1st Shortage Date_Stock',
+      '1st Shortage Date_DT'
+    ];
+    for(const wantedHeader of shortageDateHeaders){
+      const ci=mrp.headerBottom.findIndex(h=>normHeader(h)===normHeader(wantedHeader));
+      if(ci<0)continue;
+      for(let r=2;r<=lastRow;r++){
+        const a=XLSX.utils.encode_cell({r,c:ci});
+        const cell=ws[a];
+        if(!cell||cell.v===null||cell.v===undefined||String(cell.v).trim()==='')continue;
+        const d=toDate(cell.v);
+        if(!d)continue;
+        const oldStyle=cell.s;
+        ws[a]={t:'n',v:toExcelDateSerial(d),z:'dd-mmm-yy'};
+        if(oldStyle)ws[a].s=oldStyle;
+      }
+    }
+
+    ws['!cols']=mrp.headerBottom.map((h,i)=>{
+      if(i>=mrp.leftCount)return{wch:12};
+      const k=norm(h);
+      if(k==='FFFC')return{wch:16};
+      if(k==='LD PART'||k==='MATERIAL')return{wch:18};
+      if(k==='NAME SUPPLIER'||k==='SUPPLIER NAME'||k==='VENDOR NAME')return{wch:20};
+      if(k==='TYPE')return{wch:22};
+      if(k==='TIME DATE')return{wch:13};
+      return{wch:Math.min(18,Math.max(10,String(h||'').length+2))};
+    });
+    ws['!rows']=[{hpt:19},{hpt:19}];
+    return ws;
+  }
+
+  function tagClass(s){if(s==='Pull In')return'pull';if(s==='Push Out')return'ok';if(s==='No Change')return'ok';if(s==='Excess Supply')return'neutral';if(s.includes('missing'))return'bad';return'neutral'}
+  function render(){
+    const lines=state.resultLines,q=norm($('search').value);let shown=0,html='';
+    for(const line of lines){const searchable=[line.displayMaterial,line.groupNo,line.po,line.poLine,line.status,line.bun,line.orderUnit].map(norm).join(' | ');if(q&&!searchable.includes(q))continue;
+      html+=`<tr><td>${esc(line.displayMaterial)}</td><td>${esc(line.po)}</td><td>${esc(line.poLine)}</td><td>${NF.format(line.backlogQty)}</td><td>${esc(line.orderUnit)}</td><td>${formatDate(line.currentEta)}</td><td>${esc(line.groupNo||line.material)}</td><td class="bun">${esc(line.bun)}</td><td class="qtyc">${line.qtyConverted===null?'':NF.format(line.qtyConverted)}</td><td>${formatDate(line.needBy)}</td><td class="etd">${formatDate(line.etdPropose)}</td><td><span class="tag ${tagClass(line.status)}">${esc(line.status)}</span></td><td>${typeof line.gapEtaDays==='number'?NF.format(line.gapEtaDays):esc(line.gapEtaDays||'–')}</td></tr>`;
+      shown++;if(shown>=120)break;
+    }
+    $('resultBody').innerHTML=html;$('resultMeta').textContent=`Showing ${shown.toLocaleString()} of ${lines.length.toLocaleString()} final PO lines. Export contains all rows.`;
+  }
+  $('search').addEventListener('input',render);
+
+  function exportFinal(){
+    if(!state.outputRows.length)return;
+
+    const aoa=[state.outputHeaders,...state.outputRows];
+    const ws=XLSX.utils.aoa_to_sheet(aoa);
+    const lastCol=state.outputHeaders.length-1;
+    const lastRow=state.outputRows.length;
+
+    // ---------------------------------------------------------
+    // 1) Preserve Excel-friendly date and number formats
+    // ---------------------------------------------------------
+    const originalDateHeaders=['PO date','Original Ack date','Delivery date','Required date','Updated Required Date','Availability date'];
+    const generatedDateHeaders=['ETA factory XP Need By','ETD Propose'];
+
+    for(const dh of originalDateHeaders){
+      const ci=state.outputHeaders.findIndex(h=>normHeader(h)===normHeader(dh));
+      if(ci<0)continue;
+      state.outputRows.forEach((row,ri)=>{
+        const d=toDate(row[ci]); if(!d)return;
+        const addr=XLSX.utils.encode_cell({r:ri+1,c:ci});
+        ws[addr]={t:'n',v:toExcelDateSerial(d),z:'mm-dd-yy'};
+      });
+    }
+    for(const dh of generatedDateHeaders){
+      const ci=state.outputHeaders.findIndex(h=>normHeader(h)===normHeader(dh));
+      if(ci<0)continue;
+      state.outputRows.forEach((row,ri)=>{
+        const d=toDate(row[ci]); if(!d)return;
+        const addr=XLSX.utils.encode_cell({r:ri+1,c:ci});
+        ws[addr]={t:'n',v:toExcelDateSerial(d),z:'dd-mmm-yy'};
+      });
+    }
+
+    const threeDecimalHeaders=new Set([
+      'TOTAL PO LINE QTY','SCHEDULE LINE QTY.','BACKLOG QTY','UNIT PRICE','VALUE',
+      'ROUNDING VALUE','MINIMUM LOT SIZE','SAFETY STOCK','QTY CONVERT PO'
+    ]);
+    state.outputHeaders.forEach((h,ci)=>{
+      const key=norm(h);
+      if(!threeDecimalHeaders.has(key))return;
+      for(let r=1;r<=lastRow;r++){
+        const addr=XLSX.utils.encode_cell({r,c:ci});
+        if(ws[addr]&&ws[addr].t==='n')ws[addr].z='#,##0.000';
+      }
+    });
+    const gapCi=state.outputHeaders.findIndex(h=>norm(h)===norm('Gap ETA factory XP Need By &Availability date (Day)'));
+    if(gapCi>=0){for(let r=1;r<=lastRow;r++){const a=XLSX.utils.encode_cell({r,c:gapCi});if(ws[a]&&ws[a].t==='n')ws[a].z='0';}}
+
+    // ---------------------------------------------------------
+    // 2) Header styling based on the supplied Excel sample
+    //    Original PO headers: light blue + blue font
+    //    Six calculated headers: light peach + red font
+    // ---------------------------------------------------------
+    const thin={style:'thin',color:{rgb:'FF000000'}};
+    const originalHeaderStyle={
+      font:{name:'Arial',sz:10,color:{rgb:'FF0070C0'},bold:false},
+      fill:{patternType:'solid',fgColor:{rgb:'FFDDEBF7'}},
+      alignment:{vertical:'top',wrapText:true},
+      border:{top:thin,bottom:thin,left:thin,right:thin}
+    };
+    const generatedHeaderStyle={
+      font:{name:'Arial',sz:10,color:{rgb:'FFFF0000'},bold:false},
+      fill:{patternType:'solid',fgColor:{rgb:'FFFCE4D6'}},
+      alignment:{vertical:'bottom',wrapText:false},
+      border:{top:thin,bottom:thin,left:thin,right:thin}
+    };
+    const generatedNames=new Set(['FFFC','BUN','QTY CONVERT PO','ETA FACTORY XP NEED BY','ETD PROPOSE','ETA STATUS','GAP ETA FACTORY XP NEED BY &AVAILABILITY DATE (DAY)']);
+    state.outputHeaders.forEach((h,ci)=>{
+      const addr=XLSX.utils.encode_cell({r:0,c:ci});
+      if(!ws[addr])ws[addr]={t:'s',v:h};
+      ws[addr].s=generatedNames.has(norm(h))?generatedHeaderStyle:originalHeaderStyle;
+    });
+
+    // ---------------------------------------------------------
+    // 2.1) Highlight the two requested ETD Propose columns
+    //      Material + ETA factory XP Need By = light green
+    //      Apply the fill to header and every output row while
+    //      preserving existing date/number formats and header styles.
+    // ---------------------------------------------------------
+    const highlightHeaders=new Set(['MATERIAL','ETA FACTORY XP NEED BY']);
+    const highlightFill={patternType:'solid',fgColor:{rgb:'FFC6EFCE'}};
+    state.outputHeaders.forEach((h,ci)=>{
+      if(!highlightHeaders.has(norm(h)))return;
+      for(let r=0;r<=lastRow;r++){
+        const addr=XLSX.utils.encode_cell({r,c:ci});
+        if(!ws[addr])ws[addr]={t:'s',v:''};
+        ws[addr].s={...(ws[addr].s||{}),fill:highlightFill};
+      }
+    });
+
+    ws['!rows']=[{hpt:39.6}];
+
+    // ---------------------------------------------------------
+    // 3) Column layout: original PO columns first, six fields last
+    // ---------------------------------------------------------
+    ws['!cols']=state.outputHeaders.map(h=>{
+      const k=norm(h);
+      if(k==='SUPPLIER DESCRIPTION'||k==='MATERIAL DESCRIPTION')return{wch:28};
+      if(k==='MATERIAL')return{wch:20};
+      if(k==='ORDER ACKNOWLEDGMENT NUMBER')return{wch:16};
+      if(k==='PRODUCT HIERARCHY')return{wch:20};
+      if(k==='FFFC')return{wch:16};
+       if(k==='BUN')return{wch:16};
+      if(k==='QTY CONVERT PO')return{wch:16};
+      if(k==='ETA FACTORY XP NEED BY')return{wch:22};
+      if(k==='ETD PROPOSE')return{wch:16};
+      if(k==='ETA STATUS')return{wch:28};
+      if(k==='GAP ETA FACTORY XP NEED BY &AVAILABILITY DATE (DAY)')return{wch:34};
+      return{wch:Math.min(28,Math.max(11,String(h).length+2))};
+    });
+
+    // Keep the data area clean like the reference output; only the header row is styled.
+    // Freeze/autofilter are intentionally omitted to match the supplied visual sample.
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,ws,'ETD Propose');
+    const mrpWs=makeMRPWorksheet(state.mrp);
+    if(mrpWs)XLSX.utils.book_append_sheet(wb,mrpWs,'MRP Table');
+    const now=new Date();
+    const ymd=`${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+    XLSX.writeFile(wb,`Supply_ETA_Factory XP Propose ${ymd}.xlsx`,{compression:true});
+  }
+  $('exportBtn').addEventListener('click',exportFinal);
+
+  $('runBtn').addEventListener('click',async()=>{
+    if(!window.XLSX){setMessage('Excel reader did not load. Check internet connection and reopen the HTML.','error');return}
+    const btn=$('runBtn');btn.disabled=true;btn.textContent='Processing…';setMessage('Reading 3 inputs → ROP Demand Converter → FFFC / Planned Order → FIFO ETD allocation…','info');
+    try{
+      const [demandRaw,masterRaw,supplyRaw]=await Promise.all([readMatrix(state.demandFile),readMatrix(state.masterFile),readMatrix(state.supplyFile)]);
+      const master=buildMasterMap(masterRaw.matrix);
+      const rop=applyROPConversion(demandRaw.matrix);
+      const demand=buildPlannedDemand(rop.matrix,master);
+      const supply=prepareSupply(supplyRaw.matrix,master);
+      const final=allocateETD(demand.records,supply);
+      const mrp=buildMRPTable(rop.matrix,master,final.lines);
+      state.outputHeaders=final.outputHeaders;state.outputRows=final.outputRows;state.resultLines=final.lines;state.mrp=mrp;state.stats={rop,demand,master,supply,final,mrp};
+      $('kDemand').textContent=demand.records.length.toLocaleString();$('kLines').textContent=supply.rows.length.toLocaleString();$('kBun').textContent=`${supply.stats.groupMapped.toLocaleString()} / ${supply.rows.length.toLocaleString()}`;$('kFactor').textContent=supply.stats.needFactor.toLocaleString();$('kPull').textContent=final.stats.pullIn.toLocaleString();$('kShort').textContent=`${final.stats.shortageParts.toLocaleString()} / ${NF.format(final.stats.shortageQty)}`;
+      $('results').classList.add('show');render();
+      const unresolved=[...supply.stats.unresolved.entries()].sort((a,b)=>b[1]-a[1]).slice(0,5).map(([p,c])=>`${p}: ${c}`).join(' | ');
+      setMessage('');
+      exportFinal();
+    }catch(err){console.error(err);setMessage(err.message||String(err),'error');}
+    finally{btn.disabled=false;btn.textContent='Process + Export Final'}
+  });
+
+  function parseCSV(text){const rows=[];let row=[],field='',inQuotes=false;for(let i=0;i<text.length;i++){const c=text[i];if(inQuotes){if(c==='"'){if(text[i+1]==='"'){field+='"';i++}else inQuotes=false}else field+=c}else{if(c==='"')inQuotes=true;else if(c===','){row.push(field);field=''}else if(c==='\n'){row.push(field.replace(/\r$/,''));rows.push(row);row=[];field=''}else field+=c}}if(field.length||row.length){row.push(field.replace(/\r$/,''));rows.push(row)}return rows}
+})();
+</script>
+</body>
+</html>
