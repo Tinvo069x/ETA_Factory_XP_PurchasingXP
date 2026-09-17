@@ -519,7 +519,7 @@ th{
     </div>
     <div class="controls">
       <div class="option"><label for="leadDays">ETD lead time (days)</label><input id="leadDays" type="number" min="0" max="365" value="21"></div>
-      <p class="assumption"><b>Step 0 — ROP Demand Converter:</b> before any FFFC aggregation, each LD Part uses its own ROP to convert <b>01 Demand + 01 Demand FCST-XYS</b>. The first demand bucket receives the ROP-covered quantity; covered weeks become 0; the cutoff week keeps only the amount above ROP; all weeks after cutoff remain exactly as the source. If total horizon demand is below ROP, all existing demand is moved to the first bucket without creating extra quantity. <b>02 Supply / 03 Acc Variance are untouched.</b><br><br><b>Matching key = FFFC</b> from Master List Group No. for both BI LD Part and PO Material. After ROP conversion, the existing logic is unchanged: Stock-0007 and converted demand are combined by FFFC, then PO Backlog is sorted ascending by <b>FFFC → Availability date → PO date → Backlog Qty</b>. Blank dates are placed last. If all four keys are equal, the original PO row order is preserved. <b>Allocation quantity = Qty Convert PO</b> (Order Unit → FFFC BUn). <b>ETA factory XP Need By = the BI timeline bucket immediately before the shortage / Planned Order bucket</b> (example: shortage at 09-Nov-2026 → Need By 02-Nov-2026). If the shortage is already in the first BI bucket, that first bucket is kept. <b>ETA Propose = Need By − lead time</b>. If <b>Qty Convert PO</b> cannot be calculated from units, it automatically uses <b>Backlog Qty</b>. <b>ETA Status</b> compares ETA factory XP Need By with Availability date: earlier = Pull In, later = Push Out, equal = No Change, blank Need By = Excess Supply. When <b>ETA factory XP Need By is blank</b>, <b>ETA Propose is also blank</b>. <b>Gap ETA factory XP Need By &Availability date (Day)</b> = Availability date − ETA factory XP Need By; if Need By is blank, the result is <b>Excess Supply</b>.</p>
+      <p class="assumption"><b>Step 0 — ROP Demand Converter:</b> before any FFFC aggregation, each LD Part uses its own ROP to convert <b>01 Demand + 01 Demand FCST-XYS</b>. The first demand bucket receives the ROP-covered quantity; when total horizon demand is below ROP, the first bucket is raised to max(ROP, total demand). Covered weeks become 0; the cutoff week keeps only the amount above ROP; all weeks after cutoff remain exactly as the source. If total horizon demand is below ROP, the first bucket is raised to max(ROP, total demand), so the ROP floor is created in the first bucket before the remaining logic runs. <b>02 Supply / 03 Acc Variance are untouched.</b><br><br><b>Matching key = FFFC</b> from Master List Group No. for both BI LD Part and PO Material. After ROP conversion, the existing logic is unchanged: Stock-0007 and converted demand are combined by FFFC, then PO Backlog is sorted ascending by <b>FFFC → Availability date → PO date → Backlog Qty</b>. Blank dates are placed last. If all four keys are equal, the original PO row order is preserved. <b>Allocation quantity = Qty Convert PO</b> (Order Unit → FFFC BUn). <b>ETA factory XP Need By = the BI timeline bucket immediately before the shortage / Planned Order bucket</b> (example: shortage at 09-Nov-2026 → Need By 02-Nov-2026). If the shortage is already in the first BI bucket, that first bucket is kept. <b>ETA Propose = Need By − lead time</b>. If <b>Qty Convert PO</b> cannot be calculated from units, it automatically uses <b>Backlog Qty</b>. <b>ETA Status</b> compares ETA factory XP Need By with Availability date: earlier = Pull In, later = Push Out, equal = No Change, blank Need By = Excess Supply. When <b>ETA factory XP Need By is blank</b>, <b>ETA Propose is also blank</b>. <b>Gap ETA factory XP Need By &Availability date (Day)</b> = Availability date − ETA factory XP Need By; if Need By is blank, the result is <b>Excess Supply</b>.</p>
       <button id="runBtn" class="primary" disabled>Process + Export Final</button>
     </div>
     <div id="message" class="message"></div>
@@ -734,7 +734,15 @@ th{
 
       const isFullyCovered=cutoff>=0;
       if(!isFullyCovered)cutoff=timeline.length-1;
-      const firstBucket=normalizeNumber(isFullyCovered?rop:originalTotal);
+
+      // ROP floor logic:
+      // - If total horizon Demand + FCST can reach/exceed ROP, keep the existing
+      //   converter logic unchanged: first bucket = ROP and preserve the source total.
+      // - If total horizon Demand + FCST is below ROP, force the first bucket to
+      //   max(ROP, total demand) = ROP. This intentionally creates the missing ROP
+      //   quantity in the first bucket so all downstream Stock / Planned Order / ETA
+      //   calculations start from the ROP floor requested by the user.
+      const firstBucket=normalizeNumber(isFullyCovered?rop:Math.max(rop,originalTotal));
       const residual=normalizeNumber(isFullyCovered?cumulative-rop:0);
 
       // Covered range becomes zero on both Demand rows.
@@ -761,14 +769,18 @@ th{
       let convertedTotal=0;
       for(const t of timeline)convertedTotal+=toNumber(out[rd]?.[t.i])+toNumber(out[rf]?.[t.i]);
       convertedTotal=normalizeNumber(convertedTotal);
-      if(Math.abs(convertedTotal-originalTotal)>0.000001)mismatch++;
+
+      // When source demand is below ROP, the new rule intentionally raises the
+      // converted horizon total to ROP. Otherwise the original total is preserved.
+      const expectedConvertedTotal=normalizeNumber(isFullyCovered?originalTotal:Math.max(rop,originalTotal));
+      if(Math.abs(convertedTotal-expectedConvertedTotal)>0.000001)mismatch++;
 
       processed++;
       if(isFullyCovered)fullyCovered++;else insufficient++;
       r=Math.max(rr,r+1);
     }
 
-    if(mismatch>0)throw new Error(`ROP Demand Converter validation failed on ${mismatch} block(s): converted Demand + FCST total does not match source total.`);
+    if(mismatch>0)throw new Error(`ROP Demand Converter validation failed on ${mismatch} block(s): converted Demand + FCST total does not match the expected ROP-floor total.`);
 
     return {
       matrix:out,
