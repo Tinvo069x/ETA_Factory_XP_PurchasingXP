@@ -492,7 +492,7 @@ th{
   <h1>ETA factory XP Need By</h1>
 </div></header>
 <main>
-  <div class="pipeline"><span>BI Shortage</span><b>→</b><span>ROP Demand Converter</span><b>→</b><span>Material → FFFC</span><b>→</b><span>Planned Order by FFFC</span><b>→</b><span>BUn + Qty Convert PO</span><b>→</b><span>ETD Allocation by FFFC</span><b>→</b><span>Excel: ETD Propose + MRP Table</span></div>
+  <div class="pipeline"><span>BI Shortage</span><b>→</b><span>ROP Demand Converter</span><b>→</b><span>Material → FFFC</span><b>→</b><span>Planned Order by FFFC</span><b>→</b><span>BUn + Qty Convert PO</span><b>→</b><span>ETD Allocation by FFFC</span><b>→</b><span>Excel: ETA Propose + MRP Table</span></div>
   <section class="panel setup">
     <div class="file-grid">
       <label class="dropzone" id="demandZone">
@@ -519,7 +519,7 @@ th{
     </div>
     <div class="controls">
       <div class="option"><label for="leadDays">ETD lead time (days)</label><input id="leadDays" type="number" min="0" max="365" value="21"></div>
-      <p class="assumption"><b>Step 0 — ROP Demand Converter:</b> before any FFFC aggregation, each LD Part uses its own ROP to convert <b>01 Demand + 01 Demand FCST-XYS</b>. The first demand bucket receives the ROP-covered quantity; covered weeks become 0; the cutoff week keeps only the amount above ROP; all weeks after cutoff remain exactly as the source. If total horizon demand is below ROP, all existing demand is moved to the first bucket without creating extra quantity. <b>02 Supply / 03 Acc Variance are untouched.</b><br><br><b>Matching key = FFFC</b> from Master List Group No. for both BI LD Part and PO Material. After ROP conversion, the existing logic is unchanged: Stock-0007 and converted demand are combined by FFFC, then PO Backlog is sorted ascending by <b>FFFC → Availability date → PO date → Backlog Qty</b>. Blank dates are placed last. If all four keys are equal, the original PO row order is preserved. <b>Allocation quantity = Qty Convert PO</b> (Order Unit → FFFC BUn). <b>ETA factory XP Need By = the BI timeline bucket immediately before the shortage / Planned Order bucket</b> (example: shortage at 09-Nov-2026 → Need By 02-Nov-2026). If the shortage is already in the first BI bucket, that first bucket is kept. <b>ETD Propose = Need By − lead time</b>. If <b>Qty Convert PO</b> cannot be calculated from units, it automatically uses <b>Backlog Qty</b>. <b>ETA Status</b> compares ETA factory XP Need By with Availability date: earlier = Pull In, later = Push Out, equal = No Change, blank Need By = Excess Supply. When <b>ETA factory XP Need By is blank</b>, <b>ETD Propose is also blank</b>. <b>Gap ETA factory XP Need By &Availability date (Day)</b> = Availability date − ETA factory XP Need By; if Need By is blank, the result is <b>Excess Supply</b>.</p>
+      <p class="assumption"><b>Step 0 — ROP Demand Converter:</b> before any FFFC aggregation, each LD Part uses its own ROP to convert <b>01 Demand + 01 Demand FCST-XYS</b>. The first demand bucket receives the ROP-covered quantity; covered weeks become 0; the cutoff week keeps only the amount above ROP; all weeks after cutoff remain exactly as the source. If total horizon demand is below ROP, all existing demand is moved to the first bucket without creating extra quantity. <b>02 Supply / 03 Acc Variance are untouched.</b><br><br><b>Matching key = FFFC</b> from Master List Group No. for both BI LD Part and PO Material. After ROP conversion, the existing logic is unchanged: Stock-0007 and converted demand are combined by FFFC, then PO Backlog is sorted ascending by <b>FFFC → Availability date → PO date → Backlog Qty</b>. Blank dates are placed last. If all four keys are equal, the original PO row order is preserved. <b>Allocation quantity = Qty Convert PO</b> (Order Unit → FFFC BUn). <b>ETA factory XP Need By = the BI timeline bucket immediately before the shortage / Planned Order bucket</b> (example: shortage at 09-Nov-2026 → Need By 02-Nov-2026). If the shortage is already in the first BI bucket, that first bucket is kept. <b>ETA Propose = Need By − lead time</b>. If <b>Qty Convert PO</b> cannot be calculated from units, it automatically uses <b>Backlog Qty</b>. <b>ETA Status</b> compares ETA factory XP Need By with Availability date: earlier = Pull In, later = Push Out, equal = No Change, blank Need By = Excess Supply. When <b>ETA factory XP Need By is blank</b>, <b>ETA Propose is also blank</b>. <b>Gap ETA factory XP Need By &Availability date (Day)</b> = Availability date − ETA factory XP Need By; if Need By is blank, the result is <b>Excess Supply</b>.</p>
       <button id="runBtn" class="primary" disabled>Process + Export Final</button>
     </div>
     <div id="message" class="message"></div>
@@ -537,7 +537,7 @@ th{
     <section class="panel result-panel">
       <div class="result-head"><div><h2>Final Supply_ETD_Propose preview</h2><div id="resultMeta" class="meta"></div></div><div class="head-actions"><input id="search" class="search" placeholder="Search Material / FFFC / PO / Supplier / Status..."><button id="exportBtn" class="export">Export Again</button></div></div>
       <div class="table-wrap"><table><thead><tr>
-        <th>Material</th><th>PO Number</th><th>PO Line</th><th>Backlog Qty</th><th>Order Unit</th><th>Availability date</th><th>FFFC</th><th class="bun">BUn</th><th class="qtyc">Qty Convert PO</th><th>ETA factory XP Need By</th><th class="etd">ETD Propose</th><th>ETA Status</th><th>Gap ETA factory XP Need By &Availability date (Day)</th>
+        <th>Material</th><th>PO Number</th><th>PO Line</th><th>Backlog Qty</th><th>Order Unit</th><th>Availability date</th><th>FFFC</th><th class="bun">BUn</th><th class="qtyc">Qty Convert PO</th><th>ETA factory XP Need By</th><th class="etd">ETA Propose</th><th>ETA Status</th><th>Gap ETA factory XP Need By &Availability date (Day)</th>
       </tr></thead><tbody id="resultBody"></tbody></table></div>
 
     </section>
@@ -549,7 +549,7 @@ th{
   const state = { demandFile:null, masterFile:null, supplyFile:null, outputRows:[], outputHeaders:[], resultLines:[], mrp:null, stats:null };
   const NF = new Intl.NumberFormat('en-US',{maximumFractionDigits:3});
   const TYPE_DEMAND='01 Demand', TYPE_FCST='01 Demand FCST-XYS', TYPE_SUPPLY='02 Supply', TYPE_ACC='03 Acc Variance';
-  const GENERATED = new Set(['FFFC','BUN','QTY CONVERT PO','DEMAND USED','ETA FACTORY XP NEED BY','ETD PROPOSE','ETA STATUS','PULL-IN DAYS','GAP ETA FACTORY XP NEED BY &AVAILABILITY DATE (DAY)','ALLOCATED QTY','UNCOVERED DEMAND QTY']);
+  const GENERATED = new Set(['FFFC','BUN','QTY CONVERT PO','DEMAND USED','ETA FACTORY XP NEED BY','ETA Propose','ETA STATUS','PULL-IN DAYS','GAP ETA FACTORY XP NEED BY &AVAILABILITY DATE (DAY)','ALLOCATED QTY','UNCOVERED DEMAND QTY']);
 
   const norm = v => String(v ?? '').trim().toUpperCase();
   const normHeader = v => String(v ?? '').trim().toLowerCase().replace(/[\s_\-]+/g,'');
@@ -1156,7 +1156,7 @@ th{
       else line.gapEtaDays='';
     }
 
-    const derivedHeaders=['FFFC','BUn','Qty Convert PO','ETA factory XP Need By','ETD Propose','ETA Status','Gap ETA factory XP Need By &Availability date (Day)'];
+    const derivedHeaders=['FFFC','BUn','Qty Convert PO','ETA factory XP Need By','ETA Propose','ETA Status','Gap ETA factory XP Need By &Availability date (Day)'];
     const outputHeaders=[...supply.headers,...derivedHeaders];
     const outputRows=supply.rows.map(line=>[
       ...line.values,
@@ -1504,7 +1504,7 @@ th{
     // 1) Preserve Excel-friendly date and number formats
     // ---------------------------------------------------------
     const originalDateHeaders=['PO date','Original Ack date','Delivery date','Required date','Updated Required Date','Availability date'];
-    const generatedDateHeaders=['ETA factory XP Need By','ETD Propose'];
+    const generatedDateHeaders=['ETA factory XP Need By','ETA Propose'];
 
     for(const dh of originalDateHeaders){
       const ci=state.outputHeaders.findIndex(h=>normHeader(h)===normHeader(dh));
@@ -1558,7 +1558,7 @@ th{
       alignment:{vertical:'bottom',wrapText:false},
       border:{top:thin,bottom:thin,left:thin,right:thin}
     };
-    const generatedNames=new Set(['FFFC','BUN','QTY CONVERT PO','ETA FACTORY XP NEED BY','ETD PROPOSE','ETA STATUS','GAP ETA FACTORY XP NEED BY &AVAILABILITY DATE (DAY)']);
+    const generatedNames=new Set(['FFFC','BUN','QTY CONVERT PO','ETA FACTORY XP NEED BY','ETA Propose','ETA STATUS','GAP ETA FACTORY XP NEED BY &AVAILABILITY DATE (DAY)']);
     state.outputHeaders.forEach((h,ci)=>{
       const addr=XLSX.utils.encode_cell({r:0,c:ci});
       if(!ws[addr])ws[addr]={t:'s',v:h};
@@ -1566,7 +1566,7 @@ th{
     });
 
     // ---------------------------------------------------------
-    // 2.1) Highlight the two requested ETD Propose columns
+    // 2.1) Highlight the two requested ETA Propose columns
     //      Material + ETA factory XP Need By = light green
     //      Apply the fill to header and every output row while
     //      preserving existing date/number formats and header styles.
@@ -1597,7 +1597,7 @@ th{
        if(k==='BUN')return{wch:16};
       if(k==='QTY CONVERT PO')return{wch:16};
       if(k==='ETA FACTORY XP NEED BY')return{wch:22};
-      if(k==='ETD PROPOSE')return{wch:16};
+      if(k==='ETA Propose')return{wch:16};
       if(k==='ETA STATUS')return{wch:28};
       if(k==='GAP ETA FACTORY XP NEED BY &AVAILABILITY DATE (DAY)')return{wch:34};
       return{wch:Math.min(28,Math.max(11,String(h).length+2))};
@@ -1606,7 +1606,7 @@ th{
     // Keep the data area clean like the reference output; only the header row is styled.
     // Freeze/autofilter are intentionally omitted to match the supplied visual sample.
     const wb=XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb,ws,'ETD Propose');
+    XLSX.utils.book_append_sheet(wb,ws,'ETA Propose');
     const mrpWs=makeMRPWorksheet(state.mrp);
     if(mrpWs)XLSX.utils.book_append_sheet(wb,mrpWs,'MRP Table');
     const now=new Date();
