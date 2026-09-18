@@ -499,7 +499,7 @@ th{
         <input id="demandFile" type="file" accept=".csv,.xlsx,.xlsb,.xls,.xlsm">
         <span class="file-kicker">Input 1 · Demand source</span>
         <strong class="file-title">BI Shortage Weekly</strong>
-        <span class="file-help">Expected: <b>LD Part</b>, <b>ROP</b>, <b>Stock-0007</b>, <b>Type</b>, and timeline date columns. <b>ROP Demand Converter runs first for each LD Part</b>: it consumes cumulative 01 Demand + 01 Demand FCST-XYS from the earliest week, moves the covered quantity to the first demand bucket, keeps only the cutoff residual, and leaves all weeks after cutoff unchanged. After that, the existing FFFC mapping, stock and Planned Order logic runs unchanged.</span>
+        <span class="file-help">Expected: <b>LD Part</b>, <b>ROP</b>, <b>Safety Stock</b>, <b>Stock-0007</b>, <b>Type</b>, and timeline date columns. <b>ROP Demand Converter runs first for each LD Part</b>. When <b>ROP &gt; 0</b>, the existing ROP logic is unchanged. When <b>ROP = 0 and Safety Stock &gt; 0</b>, Safety Stock is added once to the first <b>01 Demand</b> bucket (example: 1,024 + 4,461 = 5,485), then the existing FFFC mapping, stock, Planned Order, FIFO and ETA logic continues unchanged.</span>
         <span class="file-name" id="demandName"></span>
       </label>
       <label class="dropzone" id="masterZone">
@@ -519,7 +519,7 @@ th{
     </div>
     <div class="controls">
       <div class="option"><label for="leadDays">ETD lead time (days)</label><input id="leadDays" type="number" min="0" max="365" value="21"></div>
-      <p class="assumption"><b>Step 0 — ROP Demand Converter:</b> before any FFFC aggregation, each LD Part uses its own ROP to convert <b>01 Demand + 01 Demand FCST-XYS</b>. The first demand bucket receives the ROP-covered quantity; when total horizon demand is below ROP, the first bucket is raised to max(ROP, total demand). Covered weeks become 0; the cutoff week keeps only the amount above ROP; all weeks after cutoff remain exactly as the source. If total horizon demand is below ROP, the first bucket is raised to max(ROP, total demand), so the ROP floor is created in the first bucket before the remaining logic runs. <b>02 Supply / 03 Acc Variance are untouched.</b><br><br><b>Matching key = FFFC</b> from Master List Group No. for both BI LD Part and PO Material. After ROP conversion, the existing logic is unchanged: Stock-0007 and converted demand are combined by FFFC, then PO Backlog is sorted ascending by <b>FFFC → Availability date → PO date → Backlog Qty</b>. Blank dates are placed last. If all four keys are equal, the original PO row order is preserved. <b>Allocation quantity = Qty Convert PO</b> (Order Unit → FFFC BUn). <b>ETA factory XP Need By = the BI timeline bucket immediately before the shortage / Planned Order bucket</b> (example: shortage at 09-Nov-2026 → Need By 02-Nov-2026). If the shortage is already in the first BI bucket, that first bucket is kept. <b>ETA Propose = Need By − lead time</b>. If <b>Qty Convert PO</b> cannot be calculated from units, it automatically uses <b>Backlog Qty</b>. <b>ETA Status</b> compares ETA factory XP Need By with Availability date: earlier = Pull In, later = Push Out, equal = No Change, blank Need By = Excess Supply. When <b>ETA factory XP Need By is blank</b>, <b>ETA Propose is also blank</b>. <b>Gap ETA factory XP Need By &Availability date (Day)</b> = Availability date − ETA factory XP Need By; if Need By is blank, the result is <b>Excess Supply</b>.</p>
+      <p class="assumption"><b>Step 0 — ROP / Safety Stock Demand Converter:</b> before any FFFC aggregation, each LD Part first checks ROP. If <b>ROP &gt; 0</b>, the existing ROP conversion is unchanged: the first demand bucket receives the ROP-covered quantity; when total horizon demand is below ROP, the first bucket is raised to max(ROP, total demand). Covered weeks become 0; the cutoff week keeps only the amount above ROP; all weeks after cutoff remain exactly as the source. If <b>ROP = 0 and Safety Stock &gt; 0</b>, Safety Stock is added once to the first <b>01 Demand</b> bucket and no demand/forecast bucket is consumed or rearranged. Example: Demand 1,024 + Safety Stock 4,461 = 5,485. <b>02 Supply / source 03 Acc Variance are untouched at conversion stage; the exported MRP Acc Variance is recalculated by the existing downstream logic.</b><br><br><b>Matching key = FFFC</b> from Master List Group No. for both BI LD Part and PO Material. After ROP conversion, the existing logic is unchanged: Stock-0007 and converted demand are combined by FFFC, then PO Backlog is sorted ascending by <b>FFFC → Availability date → PO date → Backlog Qty</b>. Blank dates are placed last. If all four keys are equal, the original PO row order is preserved. <b>Allocation quantity = Qty Convert PO</b> (Order Unit → FFFC BUn). <b>ETA factory XP Need By = the BI timeline bucket immediately before the shortage / Planned Order bucket</b> (example: shortage at 09-Nov-2026 → Need By 02-Nov-2026). If the shortage is already in the first BI bucket, that first bucket is kept. <b>ETA Propose = Need By − lead time</b>. If <b>Qty Convert PO</b> cannot be calculated from units, it automatically uses <b>Backlog Qty</b>. <b>ETA Status</b> compares ETA factory XP Need By with Availability date: earlier = Pull In, later = Push Out, equal = No Change, blank Need By = Excess Supply. When <b>ETA factory XP Need By is blank</b>, <b>ETA Propose is also blank</b>. <b>Gap ETA factory XP Need By &Availability date (Day)</b> = Availability date − ETA factory XP Need By; if Need By is blank, the result is <b>Excess Supply</b>.</p>
       <button id="runBtn" class="primary" disabled>Process + Export Final</button>
     </div>
     <div id="message" class="message"></div>
@@ -673,6 +673,7 @@ th{
     const idxPart=findHeaderIndex(headers,['LD Part','LDPart','Material']);
     const idxType=findHeaderIndex(headers,['Type']);
     const idxRop=findHeaderIndex(headers,['ROP']);
+    const idxSafety=findHeaderIndex(headers,['Safety Stock','SafetyStock','Safety stock']);
 
     // Use only the contiguous timeline immediately after Type, matching the
     // standalone ROP Demand Converter behavior.
@@ -690,7 +691,7 @@ th{
     const TYPE_D=normSpaces(TYPE_DEMAND);
     const TYPE_F=normSpaces(TYPE_FCST);
 
-    let processed=0,fullyCovered=0,insufficient=0,skippedNoRop=0,skippedNoPair=0,skippedNoDemand=0,mismatch=0;
+    let processed=0,fullyCovered=0,insufficient=0,safetyStockAdded=0,skippedNoRop=0,skippedNoPair=0,skippedNoDemand=0,mismatch=0;
 
     // Create contiguous LD Part blocks. Optional Correct PG + MM PG are included
     // in the identity when present, exactly to avoid merging visually separate
@@ -718,7 +719,32 @@ th{
       if(rd===undefined||rf===undefined){skippedNoPair++;r=Math.max(rr,r+1);continue;}
 
       const rop=toNumber(out[rd]?.[idxRop] ?? out[rf]?.[idxRop]);
-      if(!(rop>0)){skippedNoRop++;r=Math.max(rr,r+1);continue;}
+
+      // NEW — Safety Stock fallback when ROP = 0:
+      // If Safety Stock > 0 and ROP = 0, add Safety Stock ONCE to the first
+      // 01 Demand timeline bucket. Do not consume/rearrange the original demand
+      // or forecast in this case. All downstream Stock / Planned Order / FIFO /
+      // ETA calculations then run on the increased demand.
+      //
+      // Example:
+      //   Safety Stock = 4,461; ROP = 0; first Demand = 1,024
+      //   => first Demand becomes 5,485.
+      const safetyStock=idxSafety>=0
+        ? toNumber(out[rd]?.[idxSafety] ?? out[rf]?.[idxSafety])
+        : 0;
+
+      if(!(rop>0)){
+        if(safetyStock>0){
+          const firstCol=timeline[0].i;
+          out[rd][firstCol]=normalizeNumber(toNumber(out[rd]?.[firstCol])+safetyStock);
+          safetyStockAdded++;
+          processed++;
+        }else{
+          skippedNoRop++;
+        }
+        r=Math.max(rr,r+1);
+        continue;
+      }
 
       const dVals=timeline.map(t=>toNumber(out[rd]?.[t.i]));
       const fVals=timeline.map(t=>toNumber(out[rf]?.[t.i]));
@@ -784,7 +810,7 @@ th{
 
     return {
       matrix:out,
-      stats:{processed,fullyCovered,insufficient,skippedNoRop,skippedNoPair,skippedNoDemand,mismatch,headerRow:hr+1,timelinePeriods:timeline.length}
+      stats:{processed,fullyCovered,insufficient,safetyStockAdded,skippedNoRop,skippedNoPair,skippedNoDemand,mismatch,headerRow:hr+1,timelinePeriods:timeline.length}
     };
   }
 
