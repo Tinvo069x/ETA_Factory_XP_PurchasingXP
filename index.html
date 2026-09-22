@@ -1507,10 +1507,17 @@ th{
   function exportFinal(){
     if(!state.outputRows.length)return;
 
-    const aoa=[state.outputHeaders,...state.outputRows];
+    // Export-only cleanup requested: remove the columns that are currently
+    // Excel AL and AQ in the ETA Propose output. Calculations and source data
+    // remain unchanged; only these two columns are omitted from the workbook.
+    const OMIT_EXPORT_COLS=new Set([37,42]); // zero-based: AL=37, AQ=42
+    const exportHeaders=state.outputHeaders.filter((_,i)=>!OMIT_EXPORT_COLS.has(i));
+    const exportRows=state.outputRows.map(row=>row.filter((_,i)=>!OMIT_EXPORT_COLS.has(i)));
+
+    const aoa=[exportHeaders,...exportRows];
     const ws=XLSX.utils.aoa_to_sheet(aoa);
-    const lastCol=state.outputHeaders.length-1;
-    const lastRow=state.outputRows.length;
+    const lastCol=exportHeaders.length-1;
+    const lastRow=exportRows.length;
 
     // ---------------------------------------------------------
     // 1) Preserve Excel-friendly date and number formats
@@ -1519,18 +1526,18 @@ th{
     const generatedDateHeaders=['ETA factory XP Need By','ETA Propose'];
 
     for(const dh of originalDateHeaders){
-      const ci=state.outputHeaders.findIndex(h=>normHeader(h)===normHeader(dh));
+      const ci=exportHeaders.findIndex(h=>normHeader(h)===normHeader(dh));
       if(ci<0)continue;
-      state.outputRows.forEach((row,ri)=>{
+      exportRows.forEach((row,ri)=>{
         const d=toDate(row[ci]); if(!d)return;
         const addr=XLSX.utils.encode_cell({r:ri+1,c:ci});
         ws[addr]={t:'n',v:toExcelDateSerial(d),z:'mm-dd-yy'};
       });
     }
     for(const dh of generatedDateHeaders){
-      const ci=state.outputHeaders.findIndex(h=>normHeader(h)===normHeader(dh));
+      const ci=exportHeaders.findIndex(h=>normHeader(h)===normHeader(dh));
       if(ci<0)continue;
-      state.outputRows.forEach((row,ri)=>{
+      exportRows.forEach((row,ri)=>{
         const d=toDate(row[ci]); if(!d)return;
         const addr=XLSX.utils.encode_cell({r:ri+1,c:ci});
         ws[addr]={t:'n',v:toExcelDateSerial(d),z:'dd-mmm-yy'};
@@ -1541,7 +1548,7 @@ th{
       'TOTAL PO LINE QTY','SCHEDULE LINE QTY.','BACKLOG QTY','UNIT PRICE','VALUE',
       'ROUNDING VALUE','MINIMUM LOT SIZE','SAFETY STOCK','QTY CONVERT PO'
     ]);
-    state.outputHeaders.forEach((h,ci)=>{
+    exportHeaders.forEach((h,ci)=>{
       const key=norm(h);
       if(!threeDecimalHeaders.has(key))return;
       for(let r=1;r<=lastRow;r++){
@@ -1549,7 +1556,7 @@ th{
         if(ws[addr]&&ws[addr].t==='n')ws[addr].z='#,##0.000';
       }
     });
-    const gapCi=state.outputHeaders.findIndex(h=>norm(h)===norm('Gap ETA factory XP Need By &Availability date (Day)'));
+    const gapCi=exportHeaders.findIndex(h=>norm(h)===norm('Gap ETA factory XP Need By &Availability date (Day)'));
     if(gapCi>=0){for(let r=1;r<=lastRow;r++){const a=XLSX.utils.encode_cell({r,c:gapCi});if(ws[a]&&ws[a].t==='n')ws[a].z='0';}}
 
     // ---------------------------------------------------------
@@ -1571,7 +1578,7 @@ th{
       border:{top:thin,bottom:thin,left:thin,right:thin}
     };
     const generatedNames=new Set(['FFFC','BUN','QTY CONVERT PO','ETA FACTORY XP NEED BY','ETA Propose','ETA STATUS','GAP ETA FACTORY XP NEED BY &AVAILABILITY DATE (DAY)']);
-    state.outputHeaders.forEach((h,ci)=>{
+    exportHeaders.forEach((h,ci)=>{
       const addr=XLSX.utils.encode_cell({r:0,c:ci});
       if(!ws[addr])ws[addr]={t:'s',v:h};
       ws[addr].s=generatedNames.has(norm(h))?generatedHeaderStyle:originalHeaderStyle;
@@ -1585,7 +1592,7 @@ th{
     // ---------------------------------------------------------
     const highlightHeaders=new Set(['MATERIAL','ETA FACTORY XP NEED BY']);
     const highlightFill={patternType:'solid',fgColor:{rgb:'FFC6EFCE'}};
-    state.outputHeaders.forEach((h,ci)=>{
+    exportHeaders.forEach((h,ci)=>{
       if(!highlightHeaders.has(norm(h)))return;
       for(let r=0;r<=lastRow;r++){
         const addr=XLSX.utils.encode_cell({r,c:ci});
@@ -1599,7 +1606,7 @@ th{
     // ---------------------------------------------------------
     // 3) Column layout: original PO columns first, six fields last
     // ---------------------------------------------------------
-    ws['!cols']=state.outputHeaders.map(h=>{
+    ws['!cols']=exportHeaders.map(h=>{
       const k=norm(h);
       if(k==='SUPPLIER DESCRIPTION'||k==='MATERIAL DESCRIPTION')return{wch:28};
       if(k==='MATERIAL')return{wch:20};
