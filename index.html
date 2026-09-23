@@ -974,6 +974,7 @@ th{
     const headers=(matrix[hr]||[]).map(v=>String(v??'').trim());
     const idxMat=findHeaderIndex(headers,['Material']), idxQty=findHeaderIndex(headers,['Backlog Qty']), idxUnit=findHeaderIndex(headers,['Order Unit']), idxAvail=findHeaderIndex(headers,['Availability date']);
     const idxPO=findHeaderIndex(headers,['PO Number']), idxPOLine=findHeaderIndex(headers,['PO Line Item','PO Line']), idxPODate=findHeaderIndex(headers,['PO date','PO Date','PO DATE']);
+    const idxReturnItem=findHeaderIndex(headers,['Return Item','ReturnItem']);
 
     // Keep every original PO OTD Backlog column in the same order.
     // If a previously processed file is accidentally used, strip old generated columns first.
@@ -986,6 +987,13 @@ th{
 
     for(let r=hr+1;r<matrix.length;r++){
       const src=matrix[r]||[]; if(src.every(v=>v===null||v===undefined||String(v).trim()===''))continue;
+
+      // STEP BEFORE ALL SUPPLY CALCULATIONS:
+      // Remove/ignore PO rows whose Return Item column is X.
+      // This happens before Material -> FFFC mapping, unit conversion, FIFO sort,
+      // ETA allocation, preview, and final Excel export. All remaining logic is unchanged.
+      if(idxReturnItem>=0&&norm(src[idxReturnItem])==='X')continue;
+
       const material=norm(src[idxMat]); if(!material)continue;
 
       const resolved=resolveMaster(material,master);
@@ -1507,12 +1515,22 @@ th{
   function exportFinal(){
     if(!state.outputRows.length)return;
 
-    // Export-only cleanup requested: remove the columns that are currently
-    // Excel AL and AQ in the ETA Propose output. Calculations and source data
-    // remain unchanged; only these two columns are omitted from the workbook.
-    const OMIT_EXPORT_COLS=new Set([37,42]); // zero-based: AL=37, AQ=42
-    const exportHeaders=state.outputHeaders.filter((_,i)=>!OMIT_EXPORT_COLS.has(i));
-    const exportRows=state.outputRows.map(row=>row.filter((_,i)=>!OMIT_EXPORT_COLS.has(i)));
+    // ETA Propose sheet export only:
+    // 1) remove the column whose header name is exactly "ETA Propose";
+    // 2) additionally remove Excel column AL (1-based column 38 / 0-based index 37).
+    // This affects only the ETA Propose export sheet. All calculation logic,
+    // preview data, and the MRP Table sheet remain unchanged.
+    const omitExportIndexes=new Set(
+      state.outputHeaders
+        .map((h,i)=>normHeader(h)===normHeader('ETA Propose')?i:-1)
+        .filter(i=>i>=0)
+    );
+    const EXCEL_COL_AL_INDEX=37;
+    if(EXCEL_COL_AL_INDEX>=0&&EXCEL_COL_AL_INDEX<state.outputHeaders.length){
+      omitExportIndexes.add(EXCEL_COL_AL_INDEX);
+    }
+    const exportHeaders=state.outputHeaders.filter((_,i)=>!omitExportIndexes.has(i));
+    const exportRows=state.outputRows.map(row=>row.filter((_,i)=>!omitExportIndexes.has(i)));
 
     const aoa=[exportHeaders,...exportRows];
     const ws=XLSX.utils.aoa_to_sheet(aoa);
