@@ -485,6 +485,9 @@ th{
   .head-actions{width:100%;flex-direction:column;align-items:stretch}
   .search,button.export{width:100%;min-width:0}
 }
+/* Lead time remains fixed at 21 days in a hidden input; only simplify the UI. */
+.controls{display:flex;justify-content:flex-end;align-items:center;gap:0}
+.controls button.primary{margin:0}
 </style>
 </head>
 <body>
@@ -518,8 +521,9 @@ th{
       </label>
     </div>
     <div class="controls">
-      <div class="option"><label for="leadDays">ETD lead time (days)</label><input id="leadDays" type="number" min="0" max="365" value="21"></div>
-      <p class="assumption"><b>Step 0 — ROP Demand Converter:</b> before any FFFC aggregation, each LD Part uses its own ROP to convert <b>01 Demand + 01 Demand FCST-XYS</b>. The first demand bucket receives the ROP-covered quantity; when total horizon demand is below ROP, the first bucket is raised to max(ROP, total demand). Covered weeks become 0; the cutoff week keeps only the amount above ROP; all weeks after cutoff remain exactly as the source. If total horizon demand is below ROP, the first bucket is raised to max(ROP, total demand), so the ROP floor is created in the first bucket before the remaining logic runs. <b>02 Supply / 03 Acc Variance are untouched.</b><br><br><b>Matching key = FFFC</b> from Master List Group No. for both BI LD Part and PO Material. After ROP conversion, the existing logic is unchanged: Stock-0007 and converted demand are combined by FFFC, then PO Backlog is sorted ascending by <b>FFFC → Availability date → PO date → Backlog Qty</b>. Blank dates are placed last. If all four keys are equal, the original PO row order is preserved. <b>Allocation quantity = Qty Convert PO</b> (Order Unit → FFFC BUn). <b>ETA factory XP Need By = the BI timeline bucket immediately before the shortage / Planned Order bucket</b> (example: shortage at 09-Nov-2026 → Need By 02-Nov-2026). If the shortage is already in the first BI bucket, that first bucket is kept. <b>ETA Propose = Need By − lead time</b>. If <b>Qty Convert PO</b> cannot be calculated from units, it automatically uses <b>Backlog Qty</b>. <b>ETA Status</b> compares ETA factory XP Need By with Availability date: earlier = Pull In, later = Push Out, equal = No Change, blank Need By = Excess Supply. When <b>ETA factory XP Need By is blank</b>, <b>ETA Propose is also blank</b>. <b>Gap ETA factory XP Need By &Availability date (Day)</b> = Availability date − ETA factory XP Need By; if Need By is blank, the result is <b>Excess Supply</b>.</p>
+      <!-- Preserve the existing ETA Propose calculation with its original 21-day default, without showing a lead-time control. -->
+      <input id="leadDays" type="hidden" value="21">
+      <p class="assumption"><b>Step 0 — ROP Demand Converter:</b> before any FFFC aggregation, each LD Part uses its own ROP to convert <b>01 Demand + 01 Demand FCST-XYS</b>. The first demand bucket receives the ROP-covered quantity; when total horizon demand is below ROP, the first bucket is raised to max(ROP, total demand). Covered weeks become 0; the cutoff week keeps only the amount above ROP; all weeks after cutoff remain exactly as the source. If total horizon demand is below ROP, the first bucket is raised to max(ROP, total demand), so the ROP floor is created in the first bucket before the remaining logic runs. <b>02 Supply / 03 Acc Variance are untouched.</b><br><br><b>Matching key = FFFC</b> from Master List Group No. for both BI LD Part and PO Material. After ROP conversion, the existing logic is unchanged: Stock-0007 and converted demand are combined by FFFC, then PO Backlog is sorted ascending by <b>FFFC → Availability date → PO date → Backlog Qty</b>. Blank dates are placed last. If all four keys are equal, the original PO row order is preserved. <b>Allocation quantity = Qty Convert PO</b> (Order Unit → FFFC BUn). <b>ETA factory XP Need By = the BI timeline bucket immediately before the shortage / Planned Order bucket</b> (example: shortage at 09-Nov-2026 → Need By 02-Nov-2026). If the shortage is already in the first BI bucket, that first bucket is kept. <b>ETA Propose = Need By − lead time</b>. If <b>Qty Convert PO</b> cannot be calculated from units, it automatically uses <b>Backlog Qty</b>. <b>ETA Status</b> compares ETA factory XP Need By with Availability date: earlier = Reschedule in, later = Reschedule out, equal = Keep Delivery Schedule, blank Need By = Excess Supply. When <b>ETA factory XP Need By is blank</b> for an Excess Supply row, the output-only date uses the final positive Demand + FCST period from the original BI Shortage for that FFFC plus one calendar month (01-Mar-2028 → 01-Apr-2028); ETA Propose stays blank and the Excess Supply status/Gap stay unchanged. If no positive demand exists, Need By remains blank. <b>Gap ETA factory XP Need By &Availability date (Day)</b> = Availability date − ETA factory XP Need By; if Need By is blank, the result is <b>Excess Supply</b>.</p>
       <button id="runBtn" class="primary" disabled>Process + Export Final</button>
     </div>
     <div id="message" class="message"></div>
@@ -531,7 +535,7 @@ th{
       <div class="kpi"><div class="label">PO lines</div><div class="value" id="kLines">–</div></div>
       <div class="kpi"><div class="label">FFFC mapped</div><div class="value" id="kBun">–</div></div>
       <div class="kpi warn"><div class="label">Need unit factor</div><div class="value" id="kFactor">–</div></div>
-      <div class="kpi warn"><div class="label">Pull-in required</div><div class="value" id="kPull">–</div></div>
+      <div class="kpi warn"><div class="label">Reschedule in required</div><div class="value" id="kPull">–</div></div>
       <div class="kpi bad"><div class="label">Uncovered demand</div><div class="value" id="kShort">–</div></div>
     </div>
     <section class="panel result-panel">
@@ -549,6 +553,9 @@ th{
   const state = { demandFile:null, masterFile:null, supplyFile:null, outputRows:[], outputHeaders:[], resultLines:[], mrp:null, stats:null };
   const NF = new Intl.NumberFormat('en-US',{maximumFractionDigits:3});
   const TYPE_DEMAND='01 Demand', TYPE_FCST='01 Demand FCST-XYS', TYPE_SUPPLY='02 Supply', TYPE_ACC='03 Acc Variance';
+  // Example: final demand 01-Mar-2028 => Excess Supply Need By 01-Apr-2028.
+  // Excess Supply output date is one calendar month after the last positive demand period.
+  const EXCESS_SUPPLY_MONTH_OFFSET = 1;
   const GENERATED = new Set(['FFFC','BUN','QTY CONVERT PO','DEMAND USED','ETA FACTORY XP NEED BY','ETA Propose','ETA STATUS','PULL-IN DAYS','GAP ETA FACTORY XP NEED BY &AVAILABILITY DATE (DAY)','ALLOCATED QTY','UNCOVERED DEMAND QTY']);
 
   const norm = v => String(v ?? '').trim().toUpperCase();
@@ -796,6 +803,35 @@ th{
     return {material:key,groupNo,groupKey,bun:groupBun||info.bun||''};
   }
 
+  // Search last actual demand period in the ORIGINAL BI Shortage (before ROP
+  // redistribution). This avoids changing the customer's final demand date when
+  // the ROP Converter moves earlier/later buckets into its first week.
+  // Matching remains by FFFC (Master List Group No.; Material fallback).
+  function findLastPositiveDemandByGroup(matrix,master){
+    const hr=findHeaderRow(matrix,[[ 'LD Part','LDPart','Material' ],['Type']],30);
+    if(hr<0)return new Map();
+    const headers=(matrix[hr]||[]).map(v=>String(v??'').trim());
+    const idxPart=findHeaderIndex(headers,['LD Part','LDPart','Material']);
+    const idxType=findHeaderIndex(headers,['Type']);
+    const timeline=[];
+    (matrix[hr]||[]).forEach((h,i)=>{const p=headerToPeriod(h);if(p)timeline.push({i,p});});
+    const demandByGroup=new Map();
+    for(let r=hr+1;r<matrix.length;r++){
+      const row=matrix[r]||[],part=norm(row[idxPart]),type=normSpaces(row[idxType]);
+      if(!part||(type!==TYPE_DEMAND&&type!==TYPE_FCST))continue;
+      const key=resolveMaster(part,master).groupKey;
+      if(!demandByGroup.has(key))demandByGroup.set(key,new Map());
+      const byDate=demandByGroup.get(key);
+      for(const t of timeline)byDate.set(t.p,normalizeNumber((byDate.get(t.p)||0)+toNumber(row[t.i])));
+    }
+    const lastByGroup=new Map();
+    for(const [key,byDate] of demandByGroup){
+      const positive=[...byDate.entries()].filter(([,qty])=>qty>0).map(([date])=>date).sort();
+      if(positive.length)lastByGroup.set(key,positive[positive.length-1]);
+    }
+    return lastByGroup;
+  }
+
   function buildPlannedDemand(matrix,master){
     if(!matrix||!matrix.length)throw new Error('BI Shortage file is empty.');
     const hr=findHeaderRow(matrix,[[ 'LD Part','LDPart','Material' ],['Type'],['Stock-0007','Stock 0007','Stock']]);
@@ -1036,6 +1072,7 @@ th{
         originalOrder:r,
         conversionStatus:conv.status,
         needBy:null,
+        excessDisplayNeedBy:null, // Output-only date: not used by FIFO or MRP allocation.
         etdPropose:null,
         gapEtaDays:'',
         allocatedQty:0,
@@ -1084,10 +1121,17 @@ th{
   function dateKey(d){return d?`${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`:''}
   function formatDate(v){const d=toDate(v);return d?new Intl.DateTimeFormat('en-GB',{day:'2-digit',month:'short',year:'numeric',timeZone:'UTC'}).format(d):'–'}
   function addDays(d,n){if(!d)return null;const x=new Date(d.getTime());x.setUTCDate(x.getUTCDate()+n);return x}
+  function addCalendarMonths(d,months){
+    if(!d)return null;
+    const first=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+months,1));
+    const monthEnd=new Date(Date.UTC(first.getUTCFullYear(),first.getUTCMonth()+1,0)).getUTCDate();
+    first.setUTCDate(Math.min(d.getUTCDate(),monthEnd));
+    return first;
+  }
   function dayDiff(later,earlier){return Math.max(0,Math.round((later-earlier)/86400000))}
   function toExcelDateSerial(d){return Math.round((d.getTime()-Date.UTC(1899,11,30))/86400000)}
 
-  function allocateETD(demandRecords,supply){
+  function allocateETD(demandRecords,supply,lastPositiveDemandByGroup=new Map()){
     const lead=Math.max(0,Math.floor(toNumber($('leadDays').value)));
 
     // Demand is already combined by FFFC (or Material fallback).
@@ -1147,15 +1191,23 @@ th{
     for(const line of supply.rows){
       const qty=Math.max(0,line.qtyConverted||0);
       if(qty<=0){line.etdPropose=line.currentEta;line.status='No backlog quantity';continue}
-      if(!line.needBy){line.etdPropose=null;line.status='Excess Supply';line.gapEtaDays='Excess Supply';continue}
+      if(!line.needBy){
+        // No FIFO shortage allocation for this PO: preserve Excess Supply status.
+        // Fill only the exported/preview Need By date, using last positive demand
+        // for this FFFC + 1 calendar month (e.g. Mar 01 => Apr 01).
+        // The allocation Need By remains null so MRP supply is unchanged.
+        const last=lastPositiveDemandByGroup.get(line.groupKey||line.material);
+        line.excessDisplayNeedBy=last?addCalendarMonths(toDate(last),EXCESS_SUPPLY_MONTH_OFFSET):null;
+        line.etdPropose=null;line.status='Excess Supply';line.gapEtaDays='Excess Supply';continue;
+      }
 
       const target=addDays(line.needBy,-lead);
       line.etdPropose=target;
 
       // ETA Status logic:
-      // Need By < Availability date  => Pull In
-      // Need By > Availability date  => Push Out
-      // Need By = Availability date  => No Change
+      // Need By < Availability date  => Reschedule in
+      // Need By > Availability date  => Reschedule out
+      // Need By = Availability date  => Keep Delivery Schedule
       // Need By blank                => Excess Supply
       // If Availability date is blank, keep the existing missing-ETA behavior.
       if(!line.currentEta){line.status='ETA missing — target calculated';continue}
@@ -1163,9 +1215,9 @@ th{
       const needByKey=dateKey(line.needBy);
       const availabilityKey=dateKey(line.currentEta);
 
-      if(needByKey<availabilityKey)line.status='Pull In';
-      else if(needByKey>availabilityKey)line.status='Push Out';
-      else line.status='No Change';
+      if(needByKey<availabilityKey)line.status='Reschedule in';
+      else if(needByKey>availabilityKey)line.status='Reschedule out';
+      else line.status='Keep Delivery Schedule';
 
       // Gap ETA factory XP Need By &Availability date (Day)
       // Equivalent logic: IF(Need By="","Excess Supply", Availability date - Need By)
@@ -1183,7 +1235,7 @@ th{
       line.groupNo||line.material||'',
       line.bun??'',
       line.qtyConverted===null?'':line.qtyConverted,
-      line.needBy?dateKey(line.needBy):'',
+      (line.needBy||line.excessDisplayNeedBy)?dateKey(line.needBy||line.excessDisplayNeedBy):'',
       line.etdPropose?dateKey(line.etdPropose):'',
       line.status,
       line.gapEtaDays
@@ -1194,8 +1246,8 @@ th{
       stats:{
         lead,
         matchedGroups,
-        pullIn:supply.rows.filter(x=>x.status==='Pull In').length,
-        onTime:supply.rows.filter(x=>x.status==='No Change').length,
+        pullIn:supply.rows.filter(x=>x.status==='Reschedule in').length,
+        onTime:supply.rows.filter(x=>x.status==='Keep Delivery Schedule').length,
         shortageParts:shortages.size,
         shortageQty:[...shortages.values()].reduce((s,q)=>s+q,0)
       }
@@ -1501,11 +1553,11 @@ th{
     return ws;
   }
 
-  function tagClass(s){if(s==='Pull In')return'pull';if(s==='Push Out')return'ok';if(s==='No Change')return'ok';if(s==='Excess Supply')return'neutral';if(s.includes('missing'))return'bad';return'neutral'}
+  function tagClass(s){if(s==='Reschedule in')return'pull';if(s==='Reschedule out')return'ok';if(s==='Keep Delivery Schedule')return'ok';if(s==='Excess Supply')return'neutral';if(s.includes('missing'))return'bad';return'neutral'}
   function render(){
     const lines=state.resultLines,q=norm($('search').value);let shown=0,html='';
     for(const line of lines){const searchable=[line.displayMaterial,line.groupNo,line.po,line.poLine,line.status,line.bun,line.orderUnit].map(norm).join(' | ');if(q&&!searchable.includes(q))continue;
-      html+=`<tr><td>${esc(line.displayMaterial)}</td><td>${esc(line.po)}</td><td>${esc(line.poLine)}</td><td>${NF.format(line.backlogQty)}</td><td>${esc(line.orderUnit)}</td><td>${formatDate(line.currentEta)}</td><td>${esc(line.groupNo||line.material)}</td><td class="bun">${esc(line.bun)}</td><td class="qtyc">${line.qtyConverted===null?'':NF.format(line.qtyConverted)}</td><td>${formatDate(line.needBy)}</td><td class="etd">${formatDate(line.etdPropose)}</td><td><span class="tag ${tagClass(line.status)}">${esc(line.status)}</span></td><td>${typeof line.gapEtaDays==='number'?NF.format(line.gapEtaDays):esc(line.gapEtaDays||'–')}</td></tr>`;
+      html+=`<tr><td>${esc(line.displayMaterial)}</td><td>${esc(line.po)}</td><td>${esc(line.poLine)}</td><td>${NF.format(line.backlogQty)}</td><td>${esc(line.orderUnit)}</td><td>${formatDate(line.currentEta)}</td><td>${esc(line.groupNo||line.material)}</td><td class="bun">${esc(line.bun)}</td><td class="qtyc">${line.qtyConverted===null?'':NF.format(line.qtyConverted)}</td><td>${formatDate(line.needBy||line.excessDisplayNeedBy)}</td><td class="etd">${formatDate(line.etdPropose)}</td><td><span class="tag ${tagClass(line.status)}">${esc(line.status)}</span></td><td>${typeof line.gapEtaDays==='number'?NF.format(line.gapEtaDays):esc(line.gapEtaDays||'–')}</td></tr>`;
       shown++;if(shown>=120)break;
     }
     $('resultBody').innerHTML=html;$('resultMeta').textContent=`Showing ${shown.toLocaleString()} of ${lines.length.toLocaleString()} final PO lines. Export contains all rows.`;
@@ -1517,17 +1569,20 @@ th{
 
     // ETA Propose sheet export only:
     // 1) remove the column whose header name is exactly "ETA Propose";
-    // 2) additionally remove Excel column AL (1-based column 38 / 0-based index 37).
-    // This affects only the ETA Propose export sheet. All calculation logic,
-    // preview data, and the MRP Table sheet remain unchanged.
+    // 2) remove the original PO Input 3 column AL only when it exists in the
+    //    uploaded PO source. New files can end at AK (37 columns): in that case
+    //    output column AL is the CALCULATED FFFC and must be preserved.
+    // Other calculations, Return Item=X filtering, preview and MRP stay unchanged.
     const omitExportIndexes=new Set(
       state.outputHeaders
         .map((h,i)=>normHeader(h)===normHeader('ETA Propose')?i:-1)
         .filter(i=>i>=0)
     );
-    const EXCEL_COL_AL_INDEX=37;
-    if(EXCEL_COL_AL_INDEX>=0&&EXCEL_COL_AL_INDEX<state.outputHeaders.length){
-      omitExportIndexes.add(EXCEL_COL_AL_INDEX);
+    const ORIGINAL_SOURCE_COL_AL_INDEX=37; // AL, 0-based; NOT the derived FFFC
+    const originalPOHeaders=state.stats?.supply?.headers||[];
+    if(originalPOHeaders.length>ORIGINAL_SOURCE_COL_AL_INDEX){
+      // Legacy source has an actual AL column: preserve the previous removal rule.
+      omitExportIndexes.add(ORIGINAL_SOURCE_COL_AL_INDEX);
     }
     const exportHeaders=state.outputHeaders.filter((_,i)=>!omitExportIndexes.has(i));
     const exportRows=state.outputRows.map(row=>row.filter((_,i)=>!omitExportIndexes.has(i)));
@@ -1658,10 +1713,11 @@ th{
     try{
       const [demandRaw,masterRaw,supplyRaw]=await Promise.all([readMatrix(state.demandFile),readMatrix(state.masterFile),readMatrix(state.supplyFile)]);
       const master=buildMasterMap(masterRaw.matrix);
+      const lastPositiveDemandByGroup=findLastPositiveDemandByGroup(demandRaw.matrix,master);
       const rop=applyROPConversion(demandRaw.matrix);
       const demand=buildPlannedDemand(rop.matrix,master);
       const supply=prepareSupply(supplyRaw.matrix,master);
-      const final=allocateETD(demand.records,supply);
+      const final=allocateETD(demand.records,supply,lastPositiveDemandByGroup);
       const mrp=buildMRPTable(rop.matrix,master,final.lines);
       state.outputHeaders=final.outputHeaders;state.outputRows=final.outputRows;state.resultLines=final.lines;state.mrp=mrp;state.stats={rop,demand,master,supply,final,mrp};
       $('kDemand').textContent=demand.records.length.toLocaleString();$('kLines').textContent=supply.rows.length.toLocaleString();$('kBun').textContent=`${supply.stats.groupMapped.toLocaleString()} / ${supply.rows.length.toLocaleString()}`;$('kFactor').textContent=supply.stats.needFactor.toLocaleString();$('kPull').textContent=final.stats.pullIn.toLocaleString();$('kShort').textContent=`${final.stats.shortageParts.toLocaleString()} / ${NF.format(final.stats.shortageQty)}`;
