@@ -523,7 +523,7 @@ th{
     <div class="controls">
       <!-- Preserve the existing ETA Propose calculation with its original 21-day default, without showing a lead-time control. -->
       <input id="leadDays" type="hidden" value="21">
-      <p class="assumption"><b>Step 0 — ROP Demand Converter:</b> before any FFFC aggregation, each LD Part uses its own ROP to convert <b>01 Demand + 01 Demand FCST-XYS</b>. The first demand bucket receives the ROP-covered quantity; when total horizon demand is below ROP, the first bucket is raised to max(ROP, total demand). Covered weeks become 0; the cutoff week keeps only the amount above ROP; all weeks after cutoff remain exactly as the source. If total horizon demand is below ROP, the first bucket is raised to max(ROP, total demand), so the ROP floor is created in the first bucket before the remaining logic runs. <b>02 Supply / 03 Acc Variance are untouched.</b><br><br><b>Matching key = FFFC</b> from Master List Group No. for both BI LD Part and PO Material. After ROP conversion, the existing logic is unchanged: Stock-0007 and converted demand are combined by FFFC, then PO Backlog is sorted ascending by <b>FFFC → Availability date → PO date → Backlog Qty</b>. Blank dates are placed last. If all four keys are equal, the original PO row order is preserved. <b>Allocation quantity = Qty Convert PO</b> (Order Unit → FFFC BUn). <b>ETA factory XP Need By = the BI timeline bucket immediately before the shortage / Planned Order bucket</b> (example: shortage at 09-Nov-2026 → Need By 02-Nov-2026). If the shortage is already in the first BI bucket, that first bucket is kept. <b>ETA Propose = Need By − lead time</b>. If <b>Qty Convert PO</b> cannot be calculated from units, it automatically uses <b>Backlog Qty</b>. <b>ETA Status</b> compares ETA factory XP Need By with Availability date: earlier = Reschedule in, later = Reschedule out, equal = Keep Delivery Schedule, blank Need By = Excess Supply. When <b>ETA factory XP Need By is blank</b> for an Excess Supply row, the output-only date uses the final positive Demand + FCST period from the original BI Shortage for that FFFC plus one calendar month (01-Mar-2028 → 01-Apr-2028); ETA Propose stays blank and the Excess Supply status/Gap stay unchanged. If no positive demand exists, Need By remains blank. <b>Gap ETA factory XP Need By &Availability date (Day)</b> = Availability date − ETA factory XP Need By; if Need By is blank, the result is <b>Excess Supply</b>.</p>
+      <p class="assumption"><b>Step 0 — ROP Demand Converter:</b> before any FFFC aggregation, each LD Part uses its own ROP to convert <b>01 Demand + 01 Demand FCST-XYS</b>. The first demand bucket receives the ROP-covered quantity; when total horizon demand is below ROP, the first bucket is raised to max(ROP, total demand). Covered weeks become 0; the cutoff week keeps only the amount above ROP; all weeks after cutoff remain exactly as the source. If total horizon demand is below ROP, the first bucket is raised to max(ROP, total demand), so the ROP floor is created in the first bucket before the remaining logic runs. <b>02 Supply / 03 Acc Variance are untouched.</b><br><br><b>Matching key = FFFC</b> from Master List Group No. for both BI LD Part and PO Material. After ROP conversion, the existing logic is unchanged: Stock-0007 and converted demand are combined by FFFC, then PO Backlog is sorted ascending by <b>FFFC → Availability date → PO date → Backlog Qty</b>. Blank dates are placed last. If all four keys are equal, the original PO row order is preserved. <b>Allocation quantity = Qty Convert PO</b> (Order Unit → FFFC BUn). <b>ETA factory XP Need By = the BI timeline bucket immediately before the shortage / Planned Order bucket</b> (example: shortage at 09-Nov-2026 → Need By 02-Nov-2026). If the shortage is already in the first BI bucket, that first bucket is kept. <b>ETA Propose = Need By − lead time</b>. If <b>Qty Convert PO</b> cannot be calculated from units, it automatically uses <b>Backlog Qty</b>. <b>ETA Status</b> compares ETA factory XP Need By with Availability date: earlier = Reschedule in, later = Reschedule out, equal = Keep Delivery Schedule, blank Need By = Excess Supply. For <b>Excess Supply</b>, use the ORIGINAL BI Shortage at FFFC level: Case 2: ROP = 0 or blank → Need By blank. Case 1: ROP &gt; 0, Stock &gt; ROP AND Stock &ge; total 01 Demand + 01 Demand FCST-XYS → Today + 112 days (LT &le; 112), or Today + LT days (LT &gt; 112). Case 3: ROP &gt; 0, Stock + total 02 Supply &gt; ROP AND Stock + total 02 Supply &gt; total Demand + FCST → <b>Today + LT if LT &gt; 112</b> (e.g. LT 188, 20-Oct-2026 → 26-Apr-2027), otherwise final positive Demand + FCST date + one calendar month. <b>If both Case 1 and Case 3 hold, choose the later date</b> (example: 01-Dec-2027 + 1 month = 01-Jan-2028, rather than 13-Sep-2027). Otherwise Need By stays blank. These rules only affect the displayed/exported Excess Supply Need By date; ETA Propose stays blank, and status/Gap remain Excess Supply. <b>Gap ETA factory XP Need By &Availability date (Day)</b> = Availability date − ETA factory XP Need By; if Need By is blank, the result is <b>Excess Supply</b>.</p>
       <button id="runBtn" class="primary" disabled>Process + Export Final</button>
     </div>
     <div id="message" class="message"></div>
@@ -652,6 +652,22 @@ th{
     return null;
   }
 
+  // BI reports may place the actual dates above a repeated "Qty" header row.
+  // Also preserve the previously supported single-row date headers unchanged.
+  function biTimeline(matrix,headerRow,idxType,contiguous=false){
+    const headers=matrix[headerRow]||[];
+    const dateRow=headerRow>0?(matrix[headerRow-1]||[]):[];
+    const out=[];
+    let started=false;
+    for(let c=idxType+1;c<headers.length;c++){
+      const p=headerToPeriod(headers[c]) ||
+        (headerKey(headers[c])==='qty'?headerToPeriod(dateRow[c]):null);
+      if(p){started=true;out.push({i:c,p,raw:p});}
+      else if(contiguous&&started)break;
+    }
+    return out;
+  }
+
   function ropBlockIdentity(row,headers,idxPart){
     const findOptional=name=>findHeaderIndex(headers,[name]);
     const idxCorrect=findOptional('Correct PG');
@@ -683,13 +699,7 @@ th{
 
     // Use only the contiguous timeline immediately after Type, matching the
     // standalone ROP Demand Converter behavior.
-    const timeline=[];
-    let timelineStarted=false;
-    for(let c=idxType+1;c<headers.length;c++){
-      const p=headerToPeriod(matrix[hr]?.[c]);
-      if(p){timelineStarted=true;timeline.push({i:c,p});}
-      else if(timelineStarted)break;
-    }
+    const timeline=biTimeline(matrix,hr,idxType,true);
     if(!timeline.length)throw new Error('BI Shortage: no timeline date columns detected after Type for ROP conversion.');
 
     // Clone rows so the uploaded source matrix itself is never mutated.
@@ -804,32 +814,146 @@ th{
   }
 
   // Search last actual demand period in the ORIGINAL BI Shortage (before ROP
-  // redistribution). This avoids changing the customer's final demand date when
-  // the ROP Converter moves earlier/later buckets into its first week.
-  // Matching remains by FFFC (Master List Group No.; Material fallback).
+  // redistribution), only for FFFC groups with source ROP > 0.
+  // ROP is stored on LD Part rows; if several parts map to one FFFC, the group
+  // qualifies when at least one of those parts has a strictly positive ROP.
+  // This condition controls ONLY the display/export date for Excess Supply;
+  // the original FIFO allocation, ROP conversion and MRP logic stay untouched.
   function findLastPositiveDemandByGroup(matrix,master){
     const hr=findHeaderRow(matrix,[[ 'LD Part','LDPart','Material' ],['Type']],30);
     if(hr<0)return new Map();
     const headers=(matrix[hr]||[]).map(v=>String(v??'').trim());
     const idxPart=findHeaderIndex(headers,['LD Part','LDPart','Material']);
     const idxType=findHeaderIndex(headers,['Type']);
-    const timeline=[];
-    (matrix[hr]||[]).forEach((h,i)=>{const p=headerToPeriod(h);if(p)timeline.push({i,p});});
-    const demandByGroup=new Map();
+    const idxRop=findHeaderIndex(headers,['ROP']);
+    const timeline=biTimeline(matrix,hr,idxType);
+    const demandByGroup=new Map(),positiveRopGroups=new Set();
     for(let r=hr+1;r<matrix.length;r++){
       const row=matrix[r]||[],part=norm(row[idxPart]),type=normSpaces(row[idxType]);
-      if(!part||(type!==TYPE_DEMAND&&type!==TYPE_FCST))continue;
+      if(!part)continue;
       const key=resolveMaster(part,master).groupKey;
+      if(idxRop>=0&&toNumber(row[idxRop])>0)positiveRopGroups.add(key);
+      if(type!==TYPE_DEMAND&&type!==TYPE_FCST)continue;
       if(!demandByGroup.has(key))demandByGroup.set(key,new Map());
       const byDate=demandByGroup.get(key);
       for(const t of timeline)byDate.set(t.p,normalizeNumber((byDate.get(t.p)||0)+toNumber(row[t.i])));
     }
     const lastByGroup=new Map();
     for(const [key,byDate] of demandByGroup){
+      if(!positiveRopGroups.has(key))continue; // ROP <= 0 / blank: Excess Supply Need By stays blank
       const positive=[...byDate.entries()].filter(([,qty])=>qty>0).map(([date])=>date).sort();
       if(positive.length)lastByGroup.set(key,positive[positive.length-1]);
     }
     return lastByGroup;
+  }
+
+  // EXCESS SUPPLY — validated Case 1 / 2 / 3 (ORIGINAL BI Shortage).
+  // All comparisons are at FFFC level, before ROP demand redistribution:
+  //   Stock  = sum of one Stock-0007 per LD Part (do not multiply by Type rows)
+  //   ROP    = sum of one ROP per LD Part; blank is treated as zero
+  //   Demand = 01 Demand + 01 Demand FCST-XYS, across all BI timeline dates
+  //   Supply = 02 Supply across all BI timeline dates (NOT PO Backlog input)
+  // CASE 2 is the first hard stop: ROP <= 0 / blank -> display Need By blank.
+  // CASE 1: ROP > 0 AND Stock > ROP AND Stock >= Demand (full coverage includes equality):
+  //         LT <= 112 -> Today + 112; LT > 112 -> Today + LT.
+  // CASE 3: ROP > 0 AND Stock+Supply > ROP AND Stock+Supply > Demand:
+  //         LT > 112 => Today + LT; else Last Positive Demand + 1 month.
+  //         When BOTH CASE 1 and CASE 3 hold, use the later-date overlap rule.
+  // WHEN BOTH CASE 1 AND CASE 3 QUALIFY: do not schedule Excess Supply
+  // before the final positive Demand + FCST period. Choose the LATER of
+  // (Today + max(112, LT)) and (Last positive Demand + FCST + 1 month).
+  // Example FF50000000316: 13-Sep-2027 vs 01-Jan-2028 => 01-Jan-2028.
+  // For exclusive Case 1 / 2 / 3, the existing result is unchanged.
+  // This is output-only for Excess Supply; it never changes FIFO/MRP.
+  function findExcessStockCoverByGroup(matrix,master){
+    const hr=findHeaderRow(matrix,[['LD Part','LDPart','Material'],['Type']],30);
+    if(hr<0)return new Map();
+    const headers=matrix[hr]||[];
+    const idxPart=findHeaderIndex(headers,['LD Part','LDPart','Material']);
+    const idxType=findHeaderIndex(headers,['Type']);
+    const idxStock=findHeaderIndex(headers,['Stock-0007','Stock 0007','Stock']);
+    const idxRop=findHeaderIndex(headers,['ROP']);
+    const idxLT=findHeaderIndex(headers,['LT','Lead Time','Lead Time (Days)','Leadtime']);
+    if(idxStock<0||idxRop<0)return new Map();
+    const timeline=biTimeline(matrix,hr,idxType);
+    if(!timeline.length)return new Map();
+
+    const groups=new Map();
+    for(let r=hr+1;r<matrix.length;r++){
+      const row=matrix[r]||[], part=norm(row[idxPart]);
+      if(!part)continue;
+      const key=resolveMaster(part,master).groupKey;
+      if(!groups.has(key))groups.set(key,{parts:new Map(),demand:new Map(),supply:new Map()});
+      const item=groups.get(key);
+      if(!item.parts.has(part))item.parts.set(part,{stock:null,rop:null,lt:null});
+      const info=item.parts.get(part);
+      const capture=(index,property)=>{
+        if(index<0)return;
+        const v=row[index];
+        if(info[property]===null && v!==null && v!==undefined && String(v).trim()!==''){
+          const n=Number(String(v).replace(/,/g,'').trim());
+          if(Number.isFinite(n))info[property]=n;
+        }
+      };
+      // Capture from any of the four Type rows, just once per LD Part.
+      capture(idxStock,'stock'); capture(idxRop,'rop'); capture(idxLT,'lt');
+      const type=normSpaces(row[idxType]);
+      if(type!==TYPE_DEMAND && type!==TYPE_FCST && type!==TYPE_SUPPLY)continue;
+      const byDate=type===TYPE_SUPPLY?item.supply:item.demand;
+      for(const t of timeline){
+        byDate.set(t.p,normalizeNumber((byDate.get(t.p)||0)+toNumber(row[t.i])));
+      }
+    }
+
+    const result=new Map();
+    for(const [key,item] of groups){
+      const parts=[...item.parts.values()];
+      // Don't estimate Stock from incomplete source records.
+      if(!parts.length||parts.some(p=>p.stock===null))continue;
+      const stock=normalizeNumber(parts.reduce((sum,p)=>sum+Math.max(0,p.stock),0));
+      const rop=normalizeNumber(parts.reduce((sum,p)=>sum+Math.max(0,p.rop??0),0));
+      const demand=normalizeNumber([...item.demand.values()].reduce((sum,v)=>sum+Math.max(0,v),0));
+      const supply=normalizeNumber([...item.supply.values()].reduce((sum,v)=>sum+v,0));
+      const knownLT=parts.every(p=>p.lt!==null&&p.lt>=0);
+      const lt=knownLT?Math.max(...parts.map(p=>p.lt)):null;
+      let rule='NONE';
+      if(!(rop>0))rule='CASE2';
+      // When Stock equals Demand, demand is completely covered: include it in Case 1.
+      else if(stock>rop && stock>=demand && knownLT)rule='CASE1';
+      else if(stock+supply>rop && stock+supply>demand)rule='CASE3';
+      result.set(key,{rule,stock,rop,demand,supply,lt});
+    }
+    return result;
+  }
+
+  function excessSupplyDisplayDate(key,lastPositiveDemandByGroup,stockCoverByGroup,today){
+    const info=stockCoverByGroup.get(key);
+    if(!info||!(info.rop>0))return null; // CASE 2, missing or incomplete BI
+    if(info.rule==='CASE1'){
+      const case1Date=addDays(today,Math.ceil(Math.max(112,info.lt)));
+      // Case 1 may ALSO satisfy Case 3, particularly when Stock already
+      // covers all demand and Supply = 0. Protect the final demand horizon:
+      // choose its +1 month date if LATER than the Case 1 date.
+      const availableStockSupply=normalizeNumber(info.stock+info.supply);
+      const alsoCase3=availableStockSupply>info.rop && availableStockSupply>info.demand;
+      if(alsoCase3){
+        const last=lastPositiveDemandByGroup.get(key);
+        const case3Date=last?addCalendarMonths(toDate(last),EXCESS_SUPPLY_MONTH_OFFSET):null;
+        if(case3Date&&case3Date>case1Date)return case3Date;
+      }
+      return case1Date;
+    }
+    if(info.rule==='CASE3'){
+      // Additional Case 3 rule (FF50000058315): with ROP > 0 and LT > 112,
+      // schedule the excess supply at Today + LT, even if Stock <= ROP.
+      // Case 1 + Case 3 overlap still uses the later-of-two-dates rule above.
+      if(Number.isFinite(info.lt)&&info.lt>112){
+        return addDays(today,Math.ceil(info.lt));
+      }
+      const last=lastPositiveDemandByGroup.get(key);
+      return last?addCalendarMonths(toDate(last),EXCESS_SUPPLY_MONTH_OFFSET):null;
+    }
+    return null; // No Case 1 or Case 3: no unsupported fallback date
   }
 
   function buildPlannedDemand(matrix,master){
@@ -840,7 +964,7 @@ th{
     const idxPart=findHeaderIndex(headers,['LD Part','LDPart','Material']);
     const idxType=findHeaderIndex(headers,['Type']);
     const idxStock=findHeaderIndex(headers,['Stock-0007','Stock 0007','Stock']);
-    const timeline=[]; rawHeaders.forEach((h,i)=>{const p=headerToPeriod(h);if(p)timeline.push({i,p})});
+    const timeline=biTimeline(matrix,hr,idxType);
     if(!timeline.length)throw new Error('BI Shortage: no timeline date columns detected.');
     const periods=[...new Set(timeline.map(x=>x.p))].sort();
 
@@ -1131,7 +1255,10 @@ th{
   function dayDiff(later,earlier){return Math.max(0,Math.round((later-earlier)/86400000))}
   function toExcelDateSerial(d){return Math.round((d.getTime()-Date.UTC(1899,11,30))/86400000)}
 
-  function allocateETD(demandRecords,supply,lastPositiveDemandByGroup=new Map()){
+  function allocateETD(demandRecords,supply,lastPositiveDemandByGroup=new Map(),stockCoverByGroup=new Map()){
+    // Resolve Today on each processing run, not when this HTML file was created.
+    const now=new Date();
+    const today=calendarDate(now.getFullYear(),now.getMonth()+1,now.getDate());
     const lead=Math.max(0,Math.floor(toNumber($('leadDays').value)));
 
     // Demand is already combined by FFFC (or Material fallback).
@@ -1161,7 +1288,11 @@ th{
     for(const [key,lines] of linesByGroup.entries()){
       const buckets=normalized.get(key)||[];
       if(!buckets.length){
-        for(const line of lines){line.etdPropose=null;line.status='Excess Supply';line.gapEtaDays='Excess Supply'}
+        // All POs are Excess Supply; apply the Case 1 / 2 / 3 output-only rules.
+        for(const line of lines){
+          line.excessDisplayNeedBy=excessSupplyDisplayDate(key,lastPositiveDemandByGroup,stockCoverByGroup,today);
+          line.etdPropose=null;line.status='Excess Supply';line.gapEtaDays='Excess Supply';
+        }
         continue;
       }
 
@@ -1193,11 +1324,10 @@ th{
       if(qty<=0){line.etdPropose=line.currentEta;line.status='No backlog quantity';continue}
       if(!line.needBy){
         // No FIFO shortage allocation for this PO: preserve Excess Supply status.
-        // Fill only the exported/preview Need By date, using last positive demand
-        // for this FFFC + 1 calendar month (e.g. Mar 01 => Apr 01).
-        // The allocation Need By remains null so MRP supply is unchanged.
-        const last=lastPositiveDemandByGroup.get(line.groupKey||line.material);
-        line.excessDisplayNeedBy=last?addCalendarMonths(toDate(last),EXCESS_SUPPLY_MONTH_OFFSET):null;
+        // Fill display/export Need By using Case 1 / 2 / 3 only.
+        // Do not touch FIFO allocation, ETA Propose, status or MRP Table.
+        // Allocation Need By remains null so the MRP Table is unchanged.
+        line.excessDisplayNeedBy=excessSupplyDisplayDate(line.groupKey||line.material,lastPositiveDemandByGroup,stockCoverByGroup,today);
         line.etdPropose=null;line.status='Excess Supply';line.gapEtaDays='Excess Supply';continue;
       }
 
@@ -1277,13 +1407,7 @@ th{
     const idxStock=findHeaderIndex(headers,['Stock-0007','Stock 0007','Stock']);
 
     // Match the same contiguous timeline used by the ROP converter.
-    const timeline=[];
-    let started=false;
-    for(let c=idxType+1;c<rawHeaders.length;c++){
-      const p=headerToPeriod(rawHeaders[c]);
-      if(p){started=true;timeline.push({i:c,p,raw:rawHeaders[c]});}
-      else if(started)break;
-    }
+    const timeline=biTimeline(matrix,hr,idxType,true);
     if(!timeline.length)return null;
 
     const timelinePos=new Map(timeline.map((t,i)=>[t.p,i]));
@@ -1714,10 +1838,11 @@ th{
       const [demandRaw,masterRaw,supplyRaw]=await Promise.all([readMatrix(state.demandFile),readMatrix(state.masterFile),readMatrix(state.supplyFile)]);
       const master=buildMasterMap(masterRaw.matrix);
       const lastPositiveDemandByGroup=findLastPositiveDemandByGroup(demandRaw.matrix,master);
+      const stockCoverByGroup=findExcessStockCoverByGroup(demandRaw.matrix,master);
       const rop=applyROPConversion(demandRaw.matrix);
       const demand=buildPlannedDemand(rop.matrix,master);
       const supply=prepareSupply(supplyRaw.matrix,master);
-      const final=allocateETD(demand.records,supply,lastPositiveDemandByGroup);
+      const final=allocateETD(demand.records,supply,lastPositiveDemandByGroup,stockCoverByGroup);
       const mrp=buildMRPTable(rop.matrix,master,final.lines);
       state.outputHeaders=final.outputHeaders;state.outputRows=final.outputRows;state.resultLines=final.lines;state.mrp=mrp;state.stats={rop,demand,master,supply,final,mrp};
       $('kDemand').textContent=demand.records.length.toLocaleString();$('kLines').textContent=supply.rows.length.toLocaleString();$('kBun').textContent=`${supply.stats.groupMapped.toLocaleString()} / ${supply.rows.length.toLocaleString()}`;$('kFactor').textContent=supply.stats.needFactor.toLocaleString();$('kPull').textContent=final.stats.pullIn.toLocaleString();$('kShort').textContent=`${final.stats.shortageParts.toLocaleString()} / ${NF.format(final.stats.shortageQty)}`;
