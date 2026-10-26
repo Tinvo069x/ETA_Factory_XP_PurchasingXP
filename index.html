@@ -523,7 +523,7 @@ th{
     <div class="controls">
       <!-- Preserve the existing ETA Propose calculation with its original 21-day default, without showing a lead-time control. -->
       <input id="leadDays" type="hidden" value="21">
-      <p class="assumption"><b>Step 0 — ROP Demand Converter:</b> before any FFFC aggregation, each LD Part uses its own ROP to convert <b>01 Demand + 01 Demand FCST-XYS</b>. The first demand bucket receives the ROP-covered quantity; when total horizon demand is below ROP, the first bucket is raised to max(ROP, total demand). Covered weeks become 0; the cutoff week keeps only the amount above ROP; all weeks after cutoff remain exactly as the source. If total horizon demand is below ROP, the first bucket is raised to max(ROP, total demand), so the ROP floor is created in the first bucket before the remaining logic runs. <b>02 Supply / 03 Acc Variance are untouched.</b><br><br><b>Matching key = FFFC</b> from Master List Group No. for both BI LD Part and PO Material. After ROP conversion, the existing logic is unchanged: Stock-0007 and converted demand are combined by FFFC, then PO Backlog is sorted ascending by <b>FFFC → Availability date → PO date → Backlog Qty</b>. Blank dates are placed last. If all four keys are equal, the original PO row order is preserved. <b>Allocation quantity = Qty Convert PO</b> (Order Unit → FFFC BUn). <b>ETA factory XP Need By = the BI timeline bucket immediately before the shortage / Planned Order bucket</b> (example: shortage at 09-Nov-2026 → Need By 02-Nov-2026). If the shortage is already in the first BI bucket, that first bucket is kept. <b>ETA Propose = Need By − lead time</b>. If <b>Qty Convert PO</b> cannot be calculated from units, it automatically uses <b>Backlog Qty</b>. <b>ETA Status</b> compares ETA factory XP Need By with Availability date: earlier = Reschedule in, later = Reschedule out, equal = Keep Delivery Schedule, blank Need By = Excess Supply. For <b>Excess Supply</b>, use the ORIGINAL BI Shortage at FFFC level: Case 2: ROP = 0 or blank → Need By blank. Case 1: ROP &gt; 0, Stock &gt; ROP AND Stock &ge; total 01 Demand + 01 Demand FCST-XYS → Today + 112 days (LT &le; 112), or Today + LT days (LT &gt; 112). Case 3: ROP &gt; 0, Stock + total 02 Supply &gt; ROP AND Stock + total 02 Supply &gt; total Demand + FCST → <b>Today + LT if LT &gt; 112</b> (e.g. LT 188, 20-Oct-2026 → 26-Apr-2027), otherwise final positive Demand + FCST date + one calendar month. <b>If both Case 1 and Case 3 hold, choose the later date</b> (example: 01-Dec-2027 + 1 month = 01-Jan-2028, rather than 13-Sep-2027). Otherwise Need By stays blank. These rules only affect the displayed/exported Excess Supply Need By date; ETA Propose stays blank, and status/Gap remain Excess Supply. <b>Gap ETA factory XP Need By &Availability date (Day)</b> = Availability date − ETA factory XP Need By; if Need By is blank, the result is <b>Excess Supply</b>.</p>
+      <p class="assumption"><b>Step 0 — ROP Demand Converter:</b> before any FFFC aggregation, each LD Part uses its own ROP to convert <b>01 Demand + 01 Demand FCST-XYS</b>. The first demand bucket receives the ROP-covered quantity; when total horizon demand is below ROP, the first bucket is raised to max(ROP, total demand). Covered weeks become 0; the cutoff week keeps only the amount above ROP; all weeks after cutoff remain exactly as the source. If total horizon demand is below ROP, the first bucket is raised to max(ROP, total demand), so the ROP floor is created in the first bucket before the remaining logic runs. <b>02 Supply / 03 Acc Variance are untouched.</b><br><br><b>Matching key = FFFC</b> from Master List Group No. for both BI LD Part and PO Material. After ROP conversion, the existing logic is unchanged: Stock-0007 and converted demand are combined by FFFC, then PO Backlog is sorted ascending by <b>FFFC → Availability date → PO date → Backlog Qty</b>. Blank dates are placed last. If all four keys are equal, the original PO row order is preserved. <b>Allocation quantity = Qty Convert PO</b> (Order Unit → FFFC BUn). <b>ETA factory XP Need By = the BI timeline bucket immediately before the shortage / Planned Order bucket</b> (example: shortage at 09-Nov-2026 → Need By 02-Nov-2026). If the shortage is already in the first BI bucket, that first bucket is kept. <b>ETA Propose = Need By − lead time</b>. If <b>Qty Convert PO</b> cannot be calculated from units, it automatically uses <b>Backlog Qty</b>. <b>ETA Status</b> compares ETA factory XP Need By with Availability date: earlier = Reschedule in, later = Reschedule out, equal = Keep Delivery Schedule, blank Need By = Excess Supply. For <b>Excess Supply</b>, use the ORIGINAL BI Shortage at FFFC level: Case 2: ROP = 0 or blank → Need By blank. Case 1: ROP &gt; 0, Stock &gt; ROP AND Stock &ge; total 01 Demand + 01 Demand FCST-XYS → Today + 119 days (LT &le; 119), or Today + LT days (LT &gt; 119). Case 3: ROP &gt; 0, Stock + total 02 Supply &gt; ROP AND Stock + total 02 Supply &gt; total Demand + FCST → <b>Today + 119 days if LT &le; 119; if LT &gt; 119, compare Today + LT with final positive Demand + FCST date + one calendar month and choose the later date</b>. If LT is unavailable, keep the existing fallback of final positive Demand + FCST date + one calendar month. <b>If both Case 1 and Case 3 hold, choose the later date</b> (example: 01-Dec-2027 + 1 month = 01-Jan-2028, rather than 13-Sep-2027). Otherwise Need By stays blank. These rules only affect the displayed/exported Excess Supply Need By date; ETA Propose stays blank, and status/Gap remain Excess Supply. <b>Gap ETA factory XP Need By &Availability date (Day)</b> = Availability date − ETA factory XP Need By; if Need By is blank, the result is <b>Excess Supply</b>.</p>
       <button id="runBtn" class="primary" disabled>Process + Export Final</button>
     </div>
     <div id="message" class="message"></div>
@@ -855,13 +855,15 @@ th{
   //   Supply = 02 Supply across all BI timeline dates (NOT PO Backlog input)
   // CASE 2 is the first hard stop: ROP <= 0 / blank -> display Need By blank.
   // CASE 1: ROP > 0 AND Stock > ROP AND Stock >= Demand (full coverage includes equality):
-  //         LT <= 112 -> Today + 112; LT > 112 -> Today + LT.
+  //         LT <= 119 -> Today + 119; LT > 119 -> Today + LT.
   // CASE 3: ROP > 0 AND Stock+Supply > ROP AND Stock+Supply > Demand:
-  //         LT > 112 => Today + LT; else Last Positive Demand + 1 month.
+  //         LT <= 119 => Today + 119.
+  //         LT > 119 => later of (Today + LT) and (Last Positive Demand + 1 month).
+  //         If LT is unavailable, keep Last Positive Demand + 1 month as fallback.
   //         When BOTH CASE 1 and CASE 3 hold, use the later-date overlap rule.
   // WHEN BOTH CASE 1 AND CASE 3 QUALIFY: do not schedule Excess Supply
   // before the final positive Demand + FCST period. Choose the LATER of
-  // (Today + max(112, LT)) and (Last positive Demand + FCST + 1 month).
+  // (Today + max(119, LT)) and (Last positive Demand + FCST + 1 month).
   // Example FF50000000316: 13-Sep-2027 vs 01-Jan-2028 => 01-Jan-2028.
   // For exclusive Case 1 / 2 / 3, the existing result is unchanged.
   // This is output-only for Excess Supply; it never changes FIFO/MRP.
@@ -930,7 +932,7 @@ th{
     const info=stockCoverByGroup.get(key);
     if(!info||!(info.rop>0))return null; // CASE 2, missing or incomplete BI
     if(info.rule==='CASE1'){
-      const case1Date=addDays(today,Math.ceil(Math.max(112,info.lt)));
+      const case1Date=addDays(today,Math.ceil(Math.max(119,info.lt)));
       // Case 1 may ALSO satisfy Case 3, particularly when Stock already
       // covers all demand and Supply = 0. Protect the final demand horizon:
       // choose its +1 month date if LATER than the Case 1 date.
@@ -944,11 +946,17 @@ th{
       return case1Date;
     }
     if(info.rule==='CASE3'){
-      // Additional Case 3 rule (FF50000058315): with ROP > 0 and LT > 112,
-      // schedule the excess supply at Today + LT, even if Stock <= ROP.
-      // Case 1 + Case 3 overlap still uses the later-of-two-dates rule above.
-      if(Number.isFinite(info.lt)&&info.lt>112){
-        return addDays(today,Math.ceil(info.lt));
+      // Case 3 keeps the 119-day floor when LT <= 119.
+      // When LT > 119, compare Today + LT with the final positive Demand + FCST
+      // timeline + 1 calendar month, and use the LATER date.
+      if(Number.isFinite(info.lt)){
+        const leadDate=addDays(today,Math.ceil(Math.max(119,info.lt)));
+        if(info.lt>119){
+          const last=lastPositiveDemandByGroup.get(key);
+          const demandDate=last?addCalendarMonths(toDate(last),EXCESS_SUPPLY_MONTH_OFFSET):null;
+          if(demandDate&&demandDate>leadDate)return demandDate;
+        }
+        return leadDate;
       }
       const last=lastPositiveDemandByGroup.get(key);
       return last?addCalendarMonths(toDate(last),EXCESS_SUPPLY_MONTH_OFFSET):null;
